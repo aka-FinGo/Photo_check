@@ -6,12 +6,12 @@ on:
       apk_type:
         description: 'Chiqariladigan APK turini tanlang:'
         required: true
-        default: 'arm64-v8a'
+        default: 'my_phone'
         type: choice
         options:
-          - 'arm64-v8a'   # Mening telefonim uchun (ARM64-v8a - ixcham hajmli)
+          - 'my_phone'    # Mening telefonim uchun (Faqat bitta ARM64-v8a APK)
           - 'universal'   # Universal APK (Barcha Android telefonlar uchun)
-          - 'both'        # Ikkala APK variantini ham chiqarish
+          - 'both'        # Ikkala APK variantini ham alohida tayyorlash
 
 jobs:
   build:
@@ -38,22 +38,38 @@ jobs:
           cd android-app
           gradle assembleDebug --stacktrace
 
-      - name: Mening telefonim uchun APK-ni yuklash (ARM64-v8a)
-        if: github.event.inputs.apk_type == 'arm64-v8a' || github.event.inputs.apk_type == 'both'
+      - name: Fayllarni ajratish va nomlash
+        run: |
+          mkdir -p dist
+          APK_DIR="android-app/app/build/outputs/apk/debug"
+          
+          # Mening telefonim uchun (ARM64-v8a) faylini alohida ajratish
+          ARM64_FILE=$(find $APK_DIR -name "*arm64-v8a*.apk" | head -n 1)
+          if [ -n "$ARM64_FILE" ]; then
+            cp "$ARM64_FILE" dist/PhotoCheck-MyPhone-arm64-v8a.apk
+          fi
+
+          # Universal APK faylini alohida ajratish
+          UNIVERSAL_FILE=$(find $APK_DIR -name "*universal*.apk" | head -n 1)
+          if [ -z "$UNIVERSAL_FILE" ]; then
+            UNIVERSAL_FILE=$(find $APK_DIR -name "app-debug.apk" | head -n 1)
+          fi
+          if [ -n "$UNIVERSAL_FILE" ]; then
+            cp "$UNIVERSAL_FILE" dist/PhotoCheck-Universal.apk
+          fi
+
+      - name: 📱 Mening telefonim uchun APK (ARM64-v8a)
+        if: github.event.inputs.apk_type == 'my_phone' || github.event.inputs.apk_type == 'both'
         uses: actions/upload-artifact@v4
         with:
-          name: PhotoCheck-MyPhone-ARM64-APK
-          path: |
-            android-app/app/build/outputs/apk/debug/*arm64-v8a*.apk
-            android-app/app/build/outputs/apk/debug/*.apk
+          name: PhotoCheck-MyPhone-arm64-v8a
+          path: dist/PhotoCheck-MyPhone-arm64-v8a.apk
           retention-days: 7
 
-      - name: Universal APK-ni yuklash (Barcha telefonlar uchun)
+      - name: 🌐 Universal APK (Barcha telefonlar uchun)
         if: github.event.inputs.apk_type == 'universal' || github.event.inputs.apk_type == 'both'
         uses: actions/upload-artifact@v4
         with:
-          name: PhotoCheck-Universal-APK
-          path: |
-            android-app/app/build/outputs/apk/debug/*universal*.apk
-            android-app/app/build/outputs/apk/debug/*.apk
+          name: PhotoCheck-Universal
+          path: dist/PhotoCheck-Universal.apk
           retention-days: 7
