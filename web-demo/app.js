@@ -87,12 +87,17 @@ const DOM = {
     navItems: document.querySelectorAll('.bottom-nav .nav-item'),
     screens: document.querySelectorAll('.app-screen'),
     folderChips: document.querySelectorAll('#folder-bar .chip'),
+    // Lightbox
+    lightboxModal: document.getElementById('lightbox-modal'),
+    lightboxClose: document.getElementById('lightbox-close'),
+    lightboxContent: document.getElementById('lightbox-content'),
+    lightboxCaption: document.getElementById('lightbox-caption'),
     // Overlays
     overlayUp: document.querySelector('.swipe-up-overlay'),
     overlayDown: document.querySelector('.swipe-down-overlay'),
     overlayLeft: document.querySelector('.swipe-left-overlay'),
     overlayRight: document.querySelector('.swipe-right-overlay'),
-    // Control Buttons
+    // Controls
     btnLeft: document.getElementById('btn-swipe-left'),
     btnRight: document.getElementById('btn-swipe-right'),
     btnUp: document.getElementById('btn-swipe-up'),
@@ -121,6 +126,7 @@ class MediaSorterApp {
         this.setupGestures();
         this.setupControlButtons();
         this.setupTrashEvents();
+        this.setupLightboxEvents();
     }
 
     updateTime() {
@@ -149,6 +155,22 @@ class MediaSorterApp {
                 this.showScreen(screenId);
             });
         });
+    }
+
+    setupLightboxEvents() {
+        DOM.lightboxClose.addEventListener('click', () => {
+            DOM.lightboxModal.classList.remove('active');
+            DOM.lightboxContent.innerHTML = '';
+        });
+    }
+
+    openLightbox(item) {
+        DOM.lightboxContent.innerHTML = item.type === 'image' 
+            ? `<img src="${item.url}" alt="${item.title}">` 
+            : `<video src="${item.url}" controls autoplay></video>`;
+        
+        DOM.lightboxCaption.innerHTML = `<strong>${item.title}</strong> • Papka: ${item.folder} • Haçmi: ${item.size}`;
+        DOM.lightboxModal.classList.add('active');
     }
 
     showScreen(screenId) {
@@ -213,15 +235,9 @@ class MediaSorterApp {
                 card.classList.add('is-favorite');
             }
 
-            let mediaHTML = '';
-            if (item.type === 'image') {
-                mediaHTML = `<img src="${item.url}" alt="${item.title}">`;
-            } else if (item.type === 'video') {
-                mediaHTML = `
-                    <video loop muted playsinline src="${item.url}"></video>
-                    <div class="video-play-btn"><i class="fas fa-play"></i></div>
-                `;
-            }
+            let mediaHTML = item.type === 'image' 
+                ? `<img src="${item.url}" alt="${item.title}">` 
+                : `<video loop muted playsinline src="${item.url}"></video><div class="video-play-btn"><i class="fas fa-play"></i></div>`;
 
             card.innerHTML = `
                 <div class="media-container">
@@ -242,21 +258,13 @@ class MediaSorterApp {
 
             DOM.cardStack.appendChild(card);
 
-            if (index === 0 && item.type === 'video') {
-                const video = card.querySelector('video');
-                const playBtn = card.querySelector('.video-play-btn');
-                card.addEventListener('click', () => {
-                    if (video.paused) {
-                        video.play().catch(() => {});
-                        playBtn.style.opacity = '0';
-                    } else {
-                        video.pause();
-                        playBtn.style.opacity = '1';
+            if (index === 0) {
+                // Click top card to open Fullscreen Lightbox
+                card.addEventListener('click', (e) => {
+                    if (Math.abs(state.currentX) < 10 && Math.abs(state.currentY) < 10) {
+                        this.openLightbox(item);
                     }
                 });
-                setTimeout(() => {
-                    video.play().then(() => playBtn.style.opacity = '0').catch(() => {});
-                }, 400);
             }
         });
 
@@ -307,9 +315,6 @@ class MediaSorterApp {
                 card.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.25)';
                 card.style.transform = 'translate(0px, 0px) rotate(0deg)';
             }
-
-            state.currentX = 0;
-            state.currentY = 0;
         };
 
         card.addEventListener('mousedown', handleStart);
@@ -377,6 +382,9 @@ class MediaSorterApp {
                 else items.length > 0 ? state.currentIndex = items.length - 1 : 0;
             }
 
+            state.currentX = 0;
+            state.currentY = 0;
+
             this.renderStack();
             this.updateBadges();
         }, 300);
@@ -420,7 +428,6 @@ class MediaSorterApp {
         if (!state.trash.includes(id)) {
             state.trash.push(id);
             this.showToast('Savatga o\'tkazildi 🗑', 'danger');
-            
             const favIndex = state.favorites.indexOf(id);
             if (favIndex !== -1) state.favorites.splice(favIndex, 1);
         }
@@ -449,7 +456,6 @@ class MediaSorterApp {
 
         DOM.trashCounts.forEach(el => el.textContent = trashCount);
 
-        // Compute trash size
         const trashBytes = state.media
             .filter(item => state.trash.includes(item.id))
             .reduce((sum, item) => sum + item.sizeBytes, 0);
@@ -484,6 +490,8 @@ class MediaSorterApp {
                     <i class="fas fa-times"></i>
                 </button>
             `;
+
+            div.addEventListener('click', () => this.openLightbox(item));
 
             div.querySelector('.remove-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -522,6 +530,8 @@ class MediaSorterApp {
                     <i class="fas fa-rotate-left"></i>
                 </button>
             `;
+
+            div.addEventListener('click', () => this.openLightbox(item));
 
             div.querySelector('.restore-btn').addEventListener('click', (e) => {
                 e.stopPropagation();

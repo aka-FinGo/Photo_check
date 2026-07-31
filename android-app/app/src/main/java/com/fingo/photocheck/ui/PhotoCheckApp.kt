@@ -28,6 +28,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.fingo.photocheck.model.MediaItem
@@ -41,19 +43,18 @@ fun PhotoCheckApp(
     mediaList: List<MediaItem>,
     onDeleteMediaItems: (List<MediaItem>) -> Unit
 ) {
-    var activeTab by remember { mutableIntStateOf(0) } // 0: Sorter, 1: Favorites, 2: Trash, 3: Analytics
+    var activeTab by remember { mutableIntStateOf(0) }
     val favorites = remember { mutableStateListOf<Long>() }
     val trash = remember { mutableStateListOf<Long>() }
     var currentIndex by remember { mutableIntStateOf(0) }
     var selectedFolder by remember { mutableStateOf("Barchasi") }
-    var selectedTypeFilter by remember { mutableStateOf("Barchasi") } // Barchasi, Rasm, Video
+    var selectedTypeFilter by remember { mutableStateOf("Barchasi") }
+    var fullScreenItem by remember { mutableStateOf<MediaItem?>(null) }
 
-    // Compute unique folder names
     val folderList = remember(mediaList) {
         listOf("Barchasi") + mediaList.map { it.bucketName }.distinct()
     }
 
-    // Filtered media list
     val filteredList = remember(mediaList, trash, selectedFolder, selectedTypeFilter) {
         mediaList.filter { item ->
             val notInTrash = item.id !in trash
@@ -76,38 +77,23 @@ fun PhotoCheckApp(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Photo",
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Check",
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF6366F1)
-                        )
+                        Text("Photo", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Check", fontWeight = FontWeight.Bold, color = Color(0xFF6366F1))
                     }
                 },
                 actions = {
-                    Badge(
-                        containerColor = Color(0xFF1E1E2E),
-                        contentColor = Color.LightGray
-                    ) {
+                    Badge(containerColor = Color(0xFF1E1E2E), contentColor = Color.LightGray) {
                         Text(
                             text = if (filteredList.isNotEmpty()) "${currentIndex + 1} / ${filteredList.size}" else "0 / 0",
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF0A0A0F)
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0A0A0F))
             )
         },
         bottomBar = {
-            NavigationBar(
-                containerColor = Color(0xFF0A0A0F)
-            ) {
+            NavigationBar(containerColor = Color(0xFF0A0A0F)) {
                 NavigationBarItem(
                     selected = activeTab == 0,
                     onClick = { activeTab = 0 },
@@ -119,9 +105,7 @@ fun PhotoCheckApp(
                     onClick = { activeTab = 1 },
                     icon = {
                         BadgedBox(badge = {
-                            if (favorites.isNotEmpty()) {
-                                Badge { Text(favorites.size.toString()) }
-                            }
+                            if (favorites.isNotEmpty()) Badge { Text(favorites.size.toString()) }
                         }) {
                             Icon(Icons.Default.Favorite, contentDescription = "Sevimlilar")
                         }
@@ -133,9 +117,7 @@ fun PhotoCheckApp(
                     onClick = { activeTab = 2 },
                     icon = {
                         BadgedBox(badge = {
-                            if (trash.isNotEmpty()) {
-                                Badge(containerColor = Color(0xFFEF4444)) { Text(trash.size.toString()) }
-                            }
+                            if (trash.isNotEmpty()) Badge(containerColor = Color(0xFFEF4444)) { Text(trash.size.toString()) }
                         }) {
                             Icon(Icons.Default.Delete, contentDescription = "Savat")
                         }
@@ -152,11 +134,7 @@ fun PhotoCheckApp(
         },
         containerColor = Color(0xFF0A0A0F)
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when (activeTab) {
                 0 -> SorterScreen(
                     availableMedia = filteredList,
@@ -167,6 +145,7 @@ fun PhotoCheckApp(
                     onSelectTypeFilter = { selectedTypeFilter = it; currentIndex = 0 },
                     currentIndex = currentIndex,
                     favorites = favorites,
+                    onItemClick = { fullScreenItem = it },
                     onNext = {
                         if (currentIndex < filteredList.size - 1) currentIndex++
                         else if (filteredList.isNotEmpty()) currentIndex = 0
@@ -181,45 +160,47 @@ fun PhotoCheckApp(
                     },
                     onQueueDelete = { item ->
                         if (item.id !in trash) trash.add(item.id)
-                        if (currentIndex >= filteredList.size - 1 && currentIndex > 0) {
-                            currentIndex--
-                        }
+                        if (currentIndex >= filteredList.size - 1 && currentIndex > 0) currentIndex--
                         scope.launch {
                             val result = snackbarHostState.showSnackbar(
                                 message = "${item.displayName} o'chirish navbatiga qo'shildi",
                                 actionLabel = "Ortga Qaytarish"
                             )
-                            if (result == SnackbarResult.ActionPerformed) {
-                                trash.remove(item.id)
-                            }
+                            if (result == SnackbarResult.ActionPerformed) trash.remove(item.id)
                         }
                     }
                 )
                 1 -> FavoritesScreen(
                     mediaList = mediaList.filter { it.id in favorites },
+                    onItemClick = { fullScreenItem = it },
                     onRemoveFavorite = { id -> favorites.remove(id) }
                 )
                 2 -> TrashScreen(
                     mediaList = mediaList.filter { it.id in trash },
+                    onItemClick = { fullScreenItem = it },
                     onRestore = { id ->
                         trash.remove(id)
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Rasm savatdan qaytarildi")
-                        }
+                        scope.launch { snackbarHostState.showSnackbar("Rasm savatdan qaytarildi") }
                     },
                     onDeleteAll = {
                         val itemsToDelete = mediaList.filter { it.id in trash }
                         onDeleteMediaItems(itemsToDelete)
                         trash.clear()
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Barcha tanlangan fayllar o'chirildi")
-                        }
+                        scope.launch { snackbarHostState.showSnackbar("Barcha tanlangan fayllar o'chirildi") }
                     }
                 )
                 3 -> AnalyticsScreen(
                     allMedia = mediaList,
                     favoritesCount = favorites.size,
                     trashItems = mediaList.filter { it.id in trash }
+                )
+            }
+
+            // Fullscreen viewer dialog
+            fullScreenItem?.let { item ->
+                FullScreenMediaViewer(
+                    item = item,
+                    onDismiss = { fullScreenItem = null }
                 )
             }
         }
@@ -236,21 +217,18 @@ fun SorterScreen(
     onSelectTypeFilter: (String) -> Unit,
     currentIndex: Int,
     favorites: List<Long>,
+    onItemClick: (MediaItem) -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onFavorite: (MediaItem) -> Unit,
     onQueueDelete: (MediaItem) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        // Folder & Filter Selector Row
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Folder Selector Filter Dropdown / Chips
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 folderList.take(3).forEach { folder ->
                     FilterChip(
@@ -265,28 +243,15 @@ fun SorterScreen(
                 }
             }
 
-            // Type Filter Toggle Buttons
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IconButton(onClick = { onSelectTypeFilter("Barchasi") }) {
-                    Icon(
-                        imageVector = Icons.Default.Collections,
-                        contentDescription = "Barchasi",
-                        tint = if (selectedTypeFilter == "Barchasi") Color(0xFF6366F1) else Color.Gray
-                    )
+                    Icon(Icons.Default.Collections, contentDescription = null, tint = if (selectedTypeFilter == "Barchasi") Color(0xFF6366F1) else Color.Gray)
                 }
                 IconButton(onClick = { onSelectTypeFilter("Rasm") }) {
-                    Icon(
-                        imageVector = Icons.Default.Image,
-                        contentDescription = "Rasmlar",
-                        tint = if (selectedTypeFilter == "Rasm") Color(0xFF6366F1) else Color.Gray
-                    )
+                    Icon(Icons.Default.Image, contentDescription = null, tint = if (selectedTypeFilter == "Rasm") Color(0xFF6366F1) else Color.Gray)
                 }
                 IconButton(onClick = { onSelectTypeFilter("Video") }) {
-                    Icon(
-                        imageVector = Icons.Default.Videocam,
-                        contentDescription = "Videolar",
-                        tint = if (selectedTypeFilter == "Video") Color(0xFF6366F1) else Color.Gray
-                    )
+                    Icon(Icons.Default.Videocam, contentDescription = null, tint = if (selectedTypeFilter == "Video") Color(0xFF6366F1) else Color.Gray)
                 }
             }
         }
@@ -297,19 +262,9 @@ fun SorterScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = Color(0xFF6366F1),
-                    modifier = Modifier.size(72.dp)
-                )
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF6366F1), modifier = Modifier.size(72.dp))
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Tanlangan albomda saralanmagan fayllar qolmadi!",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+                Text("Tanlangan albomda saralanmagan fayllar qolmadi!", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }
             return
         }
@@ -320,9 +275,7 @@ fun SorterScreen(
         val scope = rememberCoroutineScope()
 
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxSize().padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
             Card(
@@ -334,34 +287,22 @@ fun SorterScreen(
                         translationY = offsetY.value,
                         rotationZ = offsetX.value * 0.05f
                     )
+                    .clickable { onItemClick(currentItem) }
                     .pointerInput(currentItem.id) {
                         detectDragGestures(
                             onDragEnd = {
                                 val threshold = 250f
                                 val x = offsetX.value
                                 val y = offsetY.value
-
                                 scope.launch {
                                     if (abs(y) > abs(x) && abs(y) > threshold) {
-                                        if (y < 0) {
-                                            offsetY.animateTo(-1500f, spring())
-                                            onFavorite(currentItem)
-                                        } else {
-                                            offsetY.animateTo(1500f, spring())
-                                            onQueueDelete(currentItem)
-                                        }
+                                        if (y < 0) { offsetY.animateTo(-1500f, spring()); onFavorite(currentItem) }
+                                        else { offsetY.animateTo(1500f, spring()); onQueueDelete(currentItem) }
                                     } else if (abs(x) > threshold) {
-                                        if (x > 0) {
-                                            offsetX.animateTo(1500f, spring())
-                                            onPrevious()
-                                        } else {
-                                            offsetX.animateTo(-1500f, spring())
-                                            onNext()
-                                        }
+                                        if (x > 0) { offsetX.animateTo(1500f, spring()); onPrevious() }
+                                        else { offsetX.animateTo(-1500f, spring()); onNext() }
                                     }
-
-                                    offsetX.snapTo(0f)
-                                    offsetY.snapTo(0f)
+                                    offsetX.snapTo(0f); offsetY.snapTo(0f)
                                 }
                             },
                             onDrag = { change, dragAmount ->
@@ -378,10 +319,7 @@ fun SorterScreen(
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(currentItem.uri)
-                            .crossfade(true)
-                            .build(),
+                        model = ImageRequest.Builder(LocalContext.current).data(currentItem.uri).crossfade(true).build(),
                         contentDescription = currentItem.displayName,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -389,73 +327,34 @@ fun SorterScreen(
 
                     if (currentItem.mediaType == MediaType.VIDEO) {
                         Surface(
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .clip(CircleShape),
+                            modifier = Modifier.align(Alignment.Center).clip(CircleShape),
                             color = Color.Black.copy(alpha = 0.6f)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "Play",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(36.dp)
-                                )
+                            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(36.dp))
                                 if (currentItem.formattedDuration.isNotEmpty()) {
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = currentItem.formattedDuration,
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Text(currentItem.formattedDuration, color = Color.White, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
                     }
 
-                    // Metadata Info Card
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomCenter)
-                            .background(Color(0xCC0A0A0F))
-                            .padding(16.dp),
+                        modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).background(Color(0xCC0A0A0F)).padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = currentItem.displayName,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Text(currentItem.displayName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    text = "📁 ${currentItem.bucketName}",
-                                    color = Color.LightGray,
-                                    fontSize = 12.sp
-                                )
-                                Text(
-                                    text = "• ${currentItem.formattedSize}",
-                                    color = Color.Gray,
-                                    fontSize = 12.sp
-                                )
+                                Text("📁 ${currentItem.bucketName}", color = Color.LightGray, fontSize = 12.sp)
+                                Text("• ${currentItem.formattedSize}", color = Color.Gray, fontSize = 12.sp)
                             }
                         }
 
                         if (currentItem.id in favorites) {
-                            Icon(
-                                imageVector = Icons.Default.Favorite,
-                                contentDescription = "Favorite",
-                                tint = Color(0xFFF43F5E),
-                                modifier = Modifier.size(28.dp)
-                            )
+                            Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFFF43F5E), modifier = Modifier.size(28.dp))
                         }
                     }
                 }
@@ -467,15 +366,11 @@ fun SorterScreen(
 @Composable
 fun FavoritesScreen(
     mediaList: List<MediaItem>,
+    onItemClick: (MediaItem) -> Unit,
     onRemoveFavorite: (Long) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text(
-            text = "Sevimlilar Ro'yxati (${mediaList.size})",
-            fontWeight = FontWeight.Bold,
-            fontSize = 20.sp,
-            color = Color.White
-        )
+        Text("Sevimlilar Ro'yxati (${mediaList.size})", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color.White)
         Spacer(modifier = Modifier.height(16.dp))
 
         if (mediaList.isEmpty()) {
@@ -495,28 +390,14 @@ fun FavoritesScreen(
                             .aspectRatio(1f)
                             .clip(RoundedCornerShape(12.dp))
                             .background(Color(0xFF151522))
+                            .clickable { onItemClick(item) }
                     ) {
-                        AsyncImage(
-                            model = item.uri,
-                            contentDescription = item.displayName,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-
+                        AsyncImage(model = item.uri, contentDescription = item.displayName, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                         IconButton(
                             onClick = { onRemoveFavorite(item.id) },
-                            modifier = Modifier
-                                .align(Alignment.TopRight)
-                                .padding(4.dp)
-                                .size(28.dp)
-                                .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                            modifier = Modifier.align(Alignment.TopRight).padding(4.dp).size(28.dp).background(Color.Black.copy(alpha = 0.6f), CircleShape)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Favorite,
-                                contentDescription = "Olib tashlash",
-                                tint = Color(0xFFF43F5E),
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFFF43F5E), modifier = Modifier.size(16.dp))
                         }
                     }
                 }
@@ -528,6 +409,7 @@ fun FavoritesScreen(
 @Composable
 fun TrashScreen(
     mediaList: List<MediaItem>,
+    onItemClick: (MediaItem) -> Unit,
     onRestore: (Long) -> Unit,
     onDeleteAll: () -> Unit
 ) {
@@ -571,31 +453,66 @@ fun TrashScreen(
                             .aspectRatio(1f)
                             .clip(RoundedCornerShape(12.dp))
                             .background(Color(0xFF151522))
+                            .clickable { onItemClick(item) }
                     ) {
-                        AsyncImage(
-                            model = item.uri,
-                            contentDescription = item.displayName,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-
+                        AsyncImage(model = item.uri, contentDescription = item.displayName, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                         IconButton(
                             onClick = { onRestore(item.id) },
-                            modifier = Modifier
-                                .align(Alignment.BottomRight)
-                                .padding(4.dp)
-                                .size(32.dp)
-                                .background(Color(0xFF6366F1), CircleShape)
+                            modifier = Modifier.align(Alignment.BottomRight).padding(4.dp).size(32.dp).background(Color(0xFF6366F1), CircleShape)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.RestoreFromTrash,
-                                contentDescription = "Orqaga qaytarish",
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Icon(Icons.Default.RestoreFromTrash, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun FullScreenMediaViewer(
+    item: MediaItem,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .clickable { onDismiss() },
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = item.uri,
+                contentDescription = item.displayName,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(24.dp)
+                    .size(44.dp)
+                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+            ) {
+                Icon(Icons.Default.Close, contentDescription = "Yopish", tint = Color.White)
+            }
+
+            // Bottom Info Bar
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .background(Color(0xCC000000))
+                    .padding(20.dp)
+            ) {
+                Text(item.displayName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("Papka: ${item.bucketName} • Haçmi: ${item.formattedSize}", color = Color.LightGray, fontSize = 13.sp)
             }
         }
     }
@@ -610,15 +527,10 @@ fun AnalyticsScreen(
     val totalSizeMb = remember(allMedia) { allMedia.sumOf { it.size } / (1024.0 * 1024.0) }
     val trashSizeMb = remember(trashItems) { trashItems.sumOf { it.size } / (1024.0 * 1024.0) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("Xotira va Statistika Hisoboti", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color.White)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Card 1: Storage summary
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = Color(0xFF151522)),
@@ -650,7 +562,6 @@ fun AnalyticsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Grid of stats
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
