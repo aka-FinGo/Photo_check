@@ -41,20 +41,27 @@
                 <div class="header-right">
                     <div class="stat-badge">
                         <i class="fas fa-photo-film"></i>
-                        <span id="media-counter">4 / 4</span>
+                        <span id="media-counter">5 / 5</span>
                     </div>
                 </div>
             </header>
 
+            <!-- Folder Chips Bar -->
+            <div class="folder-bar" id="folder-bar">
+                <button class="chip active" data-folder="all">📁 Barchasi</button>
+                <button class="chip" data-folder="Camera">📷 Camera</button>
+                <button class="chip" data-folder="WhatsApp">💬 WhatsApp</button>
+                <button class="chip" data-folder="Screenshots">📸 Screenshots</button>
+            </div>
+
             <!-- Screen: Sorter (Main) -->
             <div id="screen-sorter" class="app-screen active">
                 <div class="gesture-zone" id="gesture-zone">
-                    <!-- Cards Stack will be dynamically populated here -->
                     <div class="card-stack" id="card-stack">
-                        <!-- Dynamic Cards go here -->
+                        <!-- Dynamic Cards -->
                     </div>
 
-                    <!-- Swipe Indicators Overlay -->
+                    <!-- Swipe Overlays -->
                     <div class="swipe-overlay swipe-up-overlay">
                         <div class="overlay-content">
                             <i class="fas fa-heart animate-heart"></i>
@@ -86,10 +93,10 @@
                             <i class="fas fa-check-circle"></i>
                         </div>
                         <h2>Hamma rasm va videolar saralandi!</h2>
-                        <p>Albomdagi barcha fayllar ko'rib chiqildi. Quyidagi amallarni bajarishingiz mumkin:</p>
+                        <p>Tanlangan papkadagi barcha fayllar ko'rib chiqildi.</p>
                         <div class="empty-actions">
                             <button class="btn btn-primary" onclick="app.showScreen('trash')">
-                                <i class="fas fa-trash-alt"></i> O'chiriladiganlarni ko'rish (<span class="trash-count">0</span>)
+                                <i class="fas fa-trash-alt"></i> Savatni ko'rish (<span class="trash-count">0</span>)
                             </button>
                             <button class="btn btn-outline" onclick="app.resetDemo()">
                                 <i class="fas fa-rotate-right"></i> Qayta boshlash
@@ -98,29 +105,7 @@
                     </div>
                 </div>
 
-                <!-- Tutorial Overlay Hints -->
-                <div class="tutorial-overlay" id="tutorial-overlay">
-                    <div class="tutorial-card">
-                        <h3>Dasturdan foydalanish qo'llanmasi</h3>
-                        <div class="tutorial-steps">
-                            <div class="step">
-                                <div class="step-icon swipe-left-right"><i class="fas fa-left-right"></i></div>
-                                <div class="step-text"><strong>Chapga/O'ngga surish:</strong> Oldingi yoki keyingi rasm/videoga o'tish</div>
-                            </div>
-                            <div class="step">
-                                <div class="step-icon swipe-up"><i class="fas fa-arrow-up"></i></div>
-                                <div class="step-text"><strong>Tepaga surish:</strong> Rasmni saralab, <strong>yurakcha (sevimlilar)</strong> ro'yxatiga qo'shish</div>
-                            </div>
-                            <div class="step">
-                                <div class="step-icon swipe-down"><i class="fas fa-arrow-down"></i></div>
-                                <div class="step-text"><strong>Pastga surish:</strong> Rasmni **o'chirish navbatiga** qo'shish (keyinroq o'chirish uchun)</div>
-                            </div>
-                        </div>
-                        <button class="btn btn-accent" id="close-tutorial">Tushunarli</button>
-                    </div>
-                </div>
-
-                <!-- Interactive Floating Action Buttons -->
+                <!-- Floating Controls -->
                 <div class="floating-controls">
                     <button class="btn-float btn-back" id="btn-swipe-left" title="Oldingisi">
                         <i class="fas fa-chevron-left"></i>
@@ -141,12 +126,10 @@
             <div id="screen-favorites" class="app-screen">
                 <div class="screen-content">
                     <div class="screen-header">
-                        <h2><i class="fas fa-heart"></i> Saralanganlar (Sevimlilar)</h2>
+                        <h2><i class="fas fa-heart"></i> Sevimlilar Ro'yxati</h2>
                         <p class="subtitle">Tepaga surilgan va saqlab qolingan media fayllar</p>
                     </div>
-                    <div class="media-grid" id="favorites-grid">
-                        <!-- Dynamically filled -->
-                    </div>
+                    <div class="media-grid" id="favorites-grid"></div>
                     <div class="screen-empty" id="favorites-empty">
                         <i class="far fa-heart"></i>
                         <p>Hozircha sevimlilar yo'q. Rasm yoki videoni tepaga surib qo'shing!</p>
@@ -158,59 +141,64 @@
             <div id="screen-trash" class="app-screen">
                 <div class="screen-content">
                     <div class="screen-header">
-                        <h2><i class="fas fa-trash-alt"></i> O'chirish navbati</h2>
-                        <p class="subtitle">Pastga surilgan va o'chirilishi kutilayotgan fayllar</p>
+                        <h2><i class="fas fa-trash-alt"></i> O'chirish Navbati</h2>
+                        <p class="subtitle">Pastga surilgan va qaytarish (restore) mumkin bo'lgan fayllar</p>
                     </div>
                     <div class="trash-summary-card">
                         <div class="summary-info">
                             <span class="count-badge"><span class="trash-count">0</span> ta fayl</span>
-                            <span class="size-badge">Taxminan ~14.2 MB joy bo'shaydi</span>
+                            <span class="size-badge" id="trash-size-info">0 MB joy bo'shaydi</span>
                         </div>
                         <button class="btn btn-danger btn-block" id="btn-empty-trash" disabled>
-                            <i class="fas fa-dumpster-fire"></i> Barchasini butunlay o'chirish
+                            <i class="fas fa-dumpster-fire"></i> Barchasini Butunlay O'chirish
                         </button>
                     </div>
-                    <div class="media-grid" id="trash-grid">
-                        <!-- Dynamically filled -->
-                    </div>
+                    <div class="media-grid" id="trash-grid"></div>
                     <div class="screen-empty" id="trash-empty">
                         <i class="far fa-trash-can"></i>
-                        <p>O'chiriladigan fayllar ro'yxati bo'sh. Rasm yoki videoni pastga surib tashlang!</p>
+                        <p>O'chiriladigan fayllar ro'yxati bo'sh.</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Screen: Settings / Info -->
-            <div id="screen-settings" class="app-screen">
+            <!-- Screen: Analytics (Hisobot) -->
+            <div id="screen-analytics" class="app-screen">
                 <div class="screen-content">
                     <div class="screen-header">
-                        <h2><i class="fas fa-info-circle"></i> Loyiha haqida</h2>
-                        <p class="subtitle">PhotoCheck (Slidebox clone) mobil dastur prototipi</p>
+                        <h2><i class="fas fa-chart-pie"></i> Statistika va Hisobot</h2>
+                        <p class="subtitle">Xotira balansi va o'chirish tahlili</p>
                     </div>
-                    
-                    <div class="settings-card">
-                        <h3>Dastur texnologiyalari</h3>
-                        <p>Ushbu loyiha Android uchun <strong>Jetpack Compose</strong> va **Kotlin** asosida yaratilgan dasturning vizual prototipidir.</p>
-                        <div class="tech-tags">
-                            <span>Kotlin</span>
-                            <span>Jetpack Compose</span>
-                            <span>MediaStore API</span>
-                            <span>Coil (Image Loading)</span>
-                            <span>ExoPlayer (Video)</span>
+
+                    <div class="stats-card">
+                        <span class="stats-label">Egallangan Umumiy Xotira</span>
+                        <div class="stats-value" id="stats-total-size">23.8 MB</div>
+                        <div class="progress-bar-wrap">
+                            <div class="progress-bar-fill" id="stats-progress" style="width: 0%;"></div>
                         </div>
+                        <div class="stats-subtext" id="stats-trash-saving">O'chirish navbatidagi joy: 0 MB</div>
                     </div>
 
-                    <div class="settings-card">
-                        <h3>GitHub Boshqaruvi</h3>
-                        <p>Ushbu loyiha avtomatik ravishda GitHub-ga yuklanish uchun tayyorlangan.</p>
-                        <button class="btn btn-outline btn-block" id="btn-show-guide">
-                            <i class="fab fa-github"></i> Git-ga yuklash yo'riqnomasi
-                        </button>
-                    </div>
-
-                    <div class="settings-card developer-credits">
-                        <h4>Yaratuvchi</h4>
-                        <p>aka-FinGo & Google Antigravity pair-programming hamkorligida.</p>
+                    <div class="stats-grid">
+                        <div class="stat-mini-card">
+                            <i class="fas fa-photo-film stat-icon"></i>
+                            <div class="num" id="stat-total-count">5</div>
+                            <div class="lbl">Jami Fayllar</div>
+                        </div>
+                        <div class="stat-mini-card">
+                            <i class="fas fa-heart stat-icon fav"></i>
+                            <div class="num" id="stat-fav-count">0</div>
+                            <div class="lbl">Sevimlilar</div>
+                        </div>
+                        <div class="stat-mini-card">
+                            <i class="fas fa-fire stat-icon trash"></i>
+                            <div class="num" id="stat-trash-count">0</div>
+                            <div class="lbl">Savatda</div>
+                        </div>
+                        <div class="stat-mini-card">
+                            <i class="fas fa-folder stat-icon"></i>
+                            <div class="num">3</div>
+                            <div class="lbl">Papkalar</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -231,9 +219,9 @@
                     <span>Savat</span>
                     <span class="badge badge-danger" id="trash-badge">0</span>
                 </button>
-                <button class="nav-item" data-screen="settings">
-                    <i class="fas fa-circle-info"></i>
-                    <span>Ma'lumot</span>
+                <button class="nav-item" data-screen="analytics">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Hisobot</span>
                 </button>
             </nav>
 
@@ -248,7 +236,7 @@
                 <h3>Haqiqatdan ham o'chirasizmi?</h3>
             </div>
             <div class="modal-body">
-                <p>Tanlangan <span class="trash-count font-bold">0</span> ta rasm va video qurilma xotirasidan butunlay o'chiriladi. Bu amalni ortga qaytarib bo'lmaydi!</p>
+                <p>Tanlangan <span class="trash-count font-bold">0</span> ta rasm va video qurilma xotirasidan butunlay o'chiriladi.</p>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-outline" id="btn-modal-cancel">Bekor qilish</button>
