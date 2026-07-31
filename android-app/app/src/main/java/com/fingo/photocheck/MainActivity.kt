@@ -1,7 +1,6 @@
 package com.fingo.photocheck
 
 import android.Manifest
-import android.content.contentResolver
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -9,9 +8,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.*
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.lifecycleScope
 import com.fingo.photocheck.model.MediaItem
 import com.fingo.photocheck.repository.MediaRepository
 import com.fingo.photocheck.ui.PhotoCheckApp
@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
                     PhotoCheckApp(
                         mediaList = mediaListState.value,
                         onDeleteMediaItems = { itemsToDelete ->
-                            // Handle deletion
+                            // Deletion logic
                         }
                     )
                 }
@@ -69,8 +69,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun loadMedia() {
-        // Load media asynchronously
-        kotlinx.coroutines.GlobalScope.launch {
+        lifecycleScope.launch {
             val items = repository.fetchMediaItems()
             mediaListState.value = items
         }
