@@ -1,0 +1,60 @@
+name: Build Android APK (PhotoCheck)
+
+on:
+  workflow_dispatch:
+    inputs:
+      apk_type:
+        description: 'Chiqariladigan APK turini tanlang:'
+        required: true
+        default: 'arm64-v8a'
+        type: choice
+        options:
+          - 'arm64-v8a'   # Mening telefonim uchun (ARM64-v8a - ixcham hajmli)
+          - 'universal'   # Universal APK (Barcha Android telefonlar uchun)
+          - 'both'        # Ikkala APK variantini ham chiqarish
+
+jobs:
+  build:
+    name: Build APK (${{ github.event.inputs.apk_type }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repozitoriyani yuklash (Checkout)
+        uses: actions/checkout@v4
+
+      - name: Java 17 (JDK) o'rnatish
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Gradle keshlash
+        uses: actions/setup-gradle@v3
+
+      - name: Gradlew-ga ijro ruxsatini berish
+        run: chmod +x ./android-app/gradlew
+
+      - name: APK-ni yig'ish (Assemble APK)
+        run: |
+          cd android-app
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Mening telefonim uchun APK-ni topish (ARM64-v8a)
+        if: github.event.inputs.apk_type == 'arm64-v8a' || github.event.inputs.apk_type == 'both'
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhotoCheck-MyPhone-ARM64-APK
+          path: |
+            android-app/app/build/outputs/apk/debug/*arm64-v8a*.apk
+            android-app/app/build/outputs/apk/debug/*.apk
+          retention-days: 7
+
+      - name: Universal APK-ni topish (Barcha telefonlar uchun)
+        if: github.event.inputs.apk_type == 'universal' || github.event.inputs.apk_type == 'both'
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhotoCheck-Universal-APK
+          path: |
+            android-app/app/build/outputs/apk/debug/*universal*.apk
+            android-app/app/build/outputs/apk/debug/*.apk
+          retention-days: 7
