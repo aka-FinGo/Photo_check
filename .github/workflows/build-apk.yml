@@ -28,16 +28,15 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Gradle keshlash va sozlash
+      - name: Gradle o'rnatish va sozlash
         uses: gradle/actions/setup-gradle@v3
-
-      - name: Gradlew-ga ijro ruxsatini berish
-        run: chmod +x ./android-app/gradlew
+        with:
+          gradle-version: '8.4'
 
       - name: APK-ni yig'ish (Assemble APK)
         run: |
           cd android-app
-          ./gradlew assembleDebug --stacktrace
+          gradle assembleDebug --stacktrace
 
       - name: Mening telefonim uchun APK-ni yuklash (ARM64-v8a)
         if: github.event.inputs.apk_type == 'arm64-v8a' || github.event.inputs.apk_type == 'both'
