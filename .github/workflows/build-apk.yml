@@ -25,7 +25,11 @@ jobs:
           cd android-app
           export GRADLE_USER_HOME="$GITHUB_WORKSPACE/.gradle_home"
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --no-daemon
+          ./gradlew assembleDebug --stacktrace --no-daemon > build_log.txt 2>&1 || {
+            echo "=== BUILD FAILED: PRINTING LOGS ==="
+            cat build_log.txt
+            exit 1
+          }
 
       - name: Fayllarni ajratish va nomlash
         run: |
