@@ -30,15 +30,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Gradle o'rnatish va sozlash
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.4'
-
       - name: APK-ni yig'ish (Assemble APK)
         run: |
           cd android-app
-          gradle assembleDebug --stacktrace
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
 
       - name: Fayllarni ajratish va nomlash
         run: |
