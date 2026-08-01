@@ -4,16 +4,6 @@ on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
-    inputs:
-      apk_type:
-        description: 'Chiqariladigan APK turini tanlang:'
-        required: true
-        default: 'my_phone'
-        type: choice
-        options:
-          - 'my_phone'    # Mening telefonim uchun (Faqat bitta ARM64-v8a APK)
-          - 'universal'   # Universal APK (Barcha Android telefonlar uchun)
-          - 'both'        # Ikkala APK variantini ham alohida tayyorlash
 
 jobs:
   build:
@@ -30,18 +20,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Gradle 8.4 o'rnatish (Kesh o'chirilgan)
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.4'
-          cache-disabled: true
-
       - name: APK-ni yig'ish (Assemble APK)
         run: |
           cd android-app
-          export ANDROID_HOME=/usr/local/lib/android/sdk
-          export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
-          gradle :app:assembleDebug --stacktrace
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
 
       - name: Fayllarni ajratish va nomlash
         run: |
