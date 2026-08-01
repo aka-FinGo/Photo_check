@@ -29,13 +29,17 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle'
+
+      - name: Gradle 8.4 o'rnatish (Kesh o'chirilgan)
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.4'
+          cache-disabled: true
 
       - name: APK-ni yig'ish (Assemble APK)
         run: |
           cd android-app
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --no-daemon
+          gradle assembleDebug --stacktrace
 
       - name: Fayllarni ajratish va nomlash
         run: |
