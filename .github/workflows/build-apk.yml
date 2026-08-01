@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Repozitoriyani yuklash (Checkout)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Java 17 (JDK) o'rnatish
         uses: actions/setup-java@v4
@@ -26,8 +28,15 @@ jobs:
           export GRADLE_USER_HOME="$GITHUB_WORKSPACE/.gradle_home"
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace --no-daemon > build_log.txt 2>&1 || {
-            echo "=== BUILD FAILED: PRINTING LOGS ==="
-            cat build_log.txt
+            echo "=== BUILD FAILED: PUSHING LOGS TO BRANCH ==="
+            git config --global user.name "GitHub Action"
+            git config --global user.email "action@github.com"
+            git checkout -b build-logs || git checkout build-logs
+            cp build_log.txt ../build_log.txt
+            cd ..
+            git add build_log.txt
+            git commit -m "Upload build failure log"
+            git push origin build-logs --force
             exit 1
           }
 
