@@ -97,7 +97,7 @@ fun PhotoCheckApp(
                 NavigationBarItem(
                     selected = activeTab == 0,
                     onClick = { activeTab = 0 },
-                    icon = { Icon(Icons.Default.Collections, contentDescription = "Saralash") },
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Saralash") },
                     label = { Text("Saralash") }
                 )
                 NavigationBarItem(
@@ -127,7 +127,7 @@ fun PhotoCheckApp(
                 NavigationBarItem(
                     selected = activeTab == 3,
                     onClick = { activeTab = 3 },
-                    icon = { Icon(Icons.Default.BarChart, contentDescription = "Statistika") },
+                    icon = { Icon(Icons.Default.List, contentDescription = "Statistika") },
                     label = { Text("Hisobot") }
                 )
             }
@@ -245,13 +245,13 @@ fun SorterScreen(
 
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IconButton(onClick = { onSelectTypeFilter("Barchasi") }) {
-                    Icon(Icons.Default.Collections, contentDescription = null, tint = if (selectedTypeFilter == "Barchasi") Color(0xFF6366F1) else Color.Gray)
+                    Icon(Icons.Default.Home, contentDescription = null, tint = if (selectedTypeFilter == "Barchasi") Color(0xFF6366F1) else Color.Gray)
                 }
                 IconButton(onClick = { onSelectTypeFilter("Rasm") }) {
                     Icon(Icons.Default.Image, contentDescription = null, tint = if (selectedTypeFilter == "Rasm") Color(0xFF6366F1) else Color.Gray)
                 }
                 IconButton(onClick = { onSelectTypeFilter("Video") }) {
-                    Icon(Icons.Default.Videocam, contentDescription = null, tint = if (selectedTypeFilter == "Video") Color(0xFF6366F1) else Color.Gray)
+                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = if (selectedTypeFilter == "Video") Color(0xFF6366F1) else Color.Gray)
                 }
             }
         }
@@ -460,7 +460,7 @@ fun TrashScreen(
                             onClick = { onRestore(item.id) },
                             modifier = Modifier.align(Alignment.BottomRight).padding(4.dp).size(32.dp).background(Color(0xFF6366F1), CircleShape)
                         ) {
-                            Icon(Icons.Default.RestoreFromTrash, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -572,7 +572,7 @@ fun AnalyticsScreen(
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = Color(0xFF6366F1))
+                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFF6366F1))
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("${allMedia.size}", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     Text("Jami Fayllar", fontSize = 12.sp, color = Color.Gray)
