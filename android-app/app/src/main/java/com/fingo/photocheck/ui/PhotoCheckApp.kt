@@ -395,7 +395,7 @@ fun FavoritesScreen(
                         AsyncImage(model = item.uri, contentDescription = item.displayName, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                         IconButton(
                             onClick = { onRemoveFavorite(item.id) },
-                            modifier = Modifier.align(Alignment.TopRight).padding(4.dp).size(28.dp).background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                            modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(28.dp).background(Color.Black.copy(alpha = 0.6f), CircleShape)
                         ) {
                             Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFFF43F5E), modifier = Modifier.size(16.dp))
                         }
@@ -458,7 +458,7 @@ fun TrashScreen(
                         AsyncImage(model = item.uri, contentDescription = item.displayName, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                         IconButton(
                             onClick = { onRestore(item.id) },
-                            modifier = Modifier.align(Alignment.BottomRight).padding(4.dp).size(32.dp).background(Color(0xFF6366F1), CircleShape)
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp).size(32.dp).background(Color(0xFF6366F1), CircleShape)
                         ) {
                             Icon(Icons.Default.RestoreFromTrash, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                         }
