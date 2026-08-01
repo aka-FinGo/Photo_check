@@ -39,7 +39,9 @@ jobs:
       - name: APK-ni yig'ish (Assemble APK)
         run: |
           cd android-app
-          gradle assembleDebug --stacktrace
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
+          gradle :app:assembleDebug --stacktrace
 
       - name: Fayllarni ajratish va nomlash
         run: |
