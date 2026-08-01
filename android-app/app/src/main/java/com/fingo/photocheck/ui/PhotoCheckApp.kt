@@ -248,7 +248,7 @@ fun SorterScreen(
                     Icon(Icons.Default.Home, contentDescription = null, tint = if (selectedTypeFilter == "Barchasi") Color(0xFF6366F1) else Color.Gray)
                 }
                 IconButton(onClick = { onSelectTypeFilter("Rasm") }) {
-                    Icon(Icons.Default.Image, contentDescription = null, tint = if (selectedTypeFilter == "Rasm") Color(0xFF6366F1) else Color.Gray)
+                    Icon(Icons.Default.Info, contentDescription = null, tint = if (selectedTypeFilter == "Rasm") Color(0xFF6366F1) else Color.Gray)
                 }
                 IconButton(onClick = { onSelectTypeFilter("Video") }) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null, tint = if (selectedTypeFilter == "Video") Color(0xFF6366F1) else Color.Gray)
@@ -262,7 +262,7 @@ fun SorterScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF6366F1), modifier = Modifier.size(72.dp))
+                Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF6366F1), modifier = Modifier.size(72.dp))
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Tanlangan albomda saralanmagan fayllar qolmadi!", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }
