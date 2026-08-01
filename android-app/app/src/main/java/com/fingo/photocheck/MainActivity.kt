@@ -1,10 +1,16 @@
 package com.fingo.photocheck
 
 import android.Manifest
+import android.database.ContentObserver
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
@@ -22,12 +28,22 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var repository: MediaRepository
     private var mediaListState = mutableStateOf<List<MediaItem>>(emptyList())
+    private var mediaObserver: ContentObserver? = null
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val allGranted = permissions.entries.all { it.value }
         if (allGranted) {
+            loadMedia()
+            registerMediaObserver()
+        }
+    }
+
+    private val deleteLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
             loadMedia()
         }
     }
@@ -47,11 +63,18 @@ class MainActivity : ComponentActivity() {
                     PhotoCheckApp(
                         mediaList = mediaListState.value,
                         onDeleteMediaItems = { itemsToDelete ->
-                            // Deletion logic
+                            deleteMediaItems(itemsToDelete)
                         }
                     )
                 }
             }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mediaObserver?.let {
+            contentResolver.unregisterContentObserver(it)
         }
     }
 
@@ -68,10 +91,58 @@ class MainActivity : ComponentActivity() {
         permissionLauncher.launch(permissionsToRequest)
     }
 
+    private fun registerMediaObserver() {
+        if (mediaObserver == null) {
+            mediaObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+                override fun onChange(selfChange: Boolean, uri: Uri?) {
+                    super.onChange(selfChange, uri)
+                    loadMedia()
+                }
+            }
+            contentResolver.registerContentObserver(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                true,
+                mediaObserver!!
+            )
+            contentResolver.registerContentObserver(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                true,
+                mediaObserver!!
+            )
+        }
+    }
+
     private fun loadMedia() {
         lifecycleScope.launch {
             val items = repository.fetchMediaItems()
             mediaListState.value = items
+        }
+    }
+
+    private fun deleteMediaItems(items: List<MediaItem>) {
+        if (items.isEmpty()) return
+        val uris = items.map { it.uri }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                val pendingIntent = MediaStore.createTrashRequest(contentResolver, uris, true)
+                deleteLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
+            } catch (e: Exception) {
+                try {
+                    val pendingIntent = MediaStore.createDeleteRequest(contentResolver, uris)
+                    deleteLauncher.launch(IntentSenderRequest.Builder(pendingIntent.intentSender).build())
+                } catch (ex: Exception) {
+                    ex.printStackTrace()
+                }
+            }
+        } else {
+            for (uri in uris) {
+                try {
+                    contentResolver.delete(uri, null, null)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            loadMedia()
         }
     }
 }
