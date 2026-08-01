@@ -194,7 +194,6 @@ fun PhotoCheckApp(
         ) {
             when (activeTab) {
                 0 -> {
-                    // Full-Screen Edge-to-Edge Media Viewer
                     if (currentItem != null) {
                         FullMediaViewerScreen(
                             item = currentItem,
@@ -241,7 +240,6 @@ fun PhotoCheckApp(
                     }
                 }
                 1 -> {
-                    // Gallery Grid View
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         contentPadding = PaddingValues(12.dp),
@@ -265,24 +263,11 @@ fun PhotoCheckApp(
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
                                 )
-                                if (item.mediaType == MediaType.VIDEO) {
-                                    Icon(
-                                        Icons.Default.PlayArrow,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier
-                                            .align(Alignment.Center)
-                                            .size(24.dp)
-                                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                                            .padding(4.dp)
-                                    )
-                                }
                             }
                         }
                     }
                 }
                 2 -> {
-                    // PhotoCheck Smart Teglari Screen (aisort.png design)
                     AISmartTagsScreen(
                         categorizedMedia = categorizedMedia,
                         trashedItems = trashedItems,
@@ -302,7 +287,6 @@ fun PhotoCheckApp(
                     )
                 }
                 3 -> {
-                    // PhotoCheck Tahlili Dashboard
                     TahlilDashboardScreen(
                         mediaList = mediaList,
                         trashedItems = trashedItems,
@@ -313,7 +297,6 @@ fun PhotoCheckApp(
                     )
                 }
                 4 -> {
-                    // Settings / App Info
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -336,7 +319,6 @@ fun PhotoCheckApp(
                 }
             }
 
-            // Move to Album Modal Sheet
             if (showAlbumSheet) {
                 ModalBottomSheet(
                     onDismissRequest = { showAlbumSheet = false },
@@ -368,6 +350,202 @@ fun PhotoCheckApp(
 }
 
 @Composable
+fun FullMediaViewerScreen(
+    item: MediaItem,
+    totalCount: Int,
+    currentIndex: Int,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
+    onTrash: () -> Unit,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
+    onShare: () -> Unit,
+    onOpenAlbumSheet: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val offsetX = remember { Animatable(0f) }
+    val offsetY = remember { Animatable(0f) }
+    val scale = remember { Animatable(1f) }
+
+    val fileSizeMb = remember(item.size) {
+        String.format(Locale.US, "%.1f MB", item.size / (1024.0 * 1024.0))
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .pointerInput(item.id) {
+                detectDragGestures(
+                    onDragEnd = {
+                        if (offsetY.value < -140f) {
+                            scope.launch {
+                                offsetY.animateTo(-800f, spring())
+                                scale.animateTo(0.2f, spring())
+                                onTrash()
+                                offsetX.snapTo(0f)
+                                offsetY.snapTo(0f)
+                                scale.snapTo(1f)
+                            }
+                        } else if (offsetX.value > 150f) {
+                            scope.launch {
+                                offsetX.animateTo(600f, tween(150))
+                                onPrevious()
+                                offsetX.snapTo(0f)
+                                offsetY.snapTo(0f)
+                            }
+                        } else if (offsetX.value < -150f) {
+                            scope.launch {
+                                offsetX.animateTo(-600f, tween(150))
+                                onNext()
+                                offsetX.snapTo(0f)
+                                offsetY.snapTo(0f)
+                            }
+                        } else {
+                            scope.launch {
+                                offsetX.animateTo(0f, spring())
+                                offsetY.animateTo(0f, spring())
+                                scale.animateTo(1f, spring())
+                            }
+                        }
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        scope.launch {
+                            offsetX.snapTo(offsetX.value + dragAmount.x)
+                            offsetY.snapTo(offsetY.value + dragAmount.y)
+                            if (offsetY.value < 0) {
+                                val s = (1f - (kotlin.math.abs(offsetY.value) / 1000f)).coerceIn(0.7f, 1f)
+                                scale.snapTo(s)
+                            }
+                        }
+                    }
+                )
+            }
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    translationX = offsetX.value
+                    translationY = offsetY.value
+                    scaleX = scale.value
+                    scaleY = scale.value
+                }
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(item.uri)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = item.displayName,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(30.dp))
+                .background(Color.Black.copy(alpha = 0.45f))
+                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(30.dp))
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = item.displayName,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.White.copy(alpha = 0.2f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = if (item.mediaType == MediaType.VIDEO) "4K 60fps" else fileSizeMb,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Close",
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 20.dp, start = 16.dp, end = 16.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(28.dp))
+                .background(Color.Black.copy(alpha = 0.65f))
+                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(28.dp))
+                .padding(vertical = 12.dp, horizontal = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clickable { onShare() }
+            ) {
+                Icon(Icons.Default.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("ULASHISH", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clickable { onOpenAlbumSheet() }
+            ) {
+                Icon(Icons.Default.Home, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("ALBOMGA...", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clickable { onToggleFavorite() }
+            ) {
+                Icon(
+                    Icons.Default.Star,
+                    contentDescription = null,
+                    tint = if (isFavorite) Color(0xFF38BDF8) else Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("SEVIMLI", color = if (isFavorite) Color(0xFF38BDF8) else Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clickable { onTrash() }
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(22.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("SAVATCHAGA", color = Color(0xFFEF4444), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
 fun AISmartTagsScreen(
     categorizedMedia: Map<SmartCategory, List<MediaItem>>,
     trashedItems: List<MediaItem>,
@@ -382,7 +560,6 @@ fun AISmartTagsScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Top Floating Status Banner (aisort.png)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -405,25 +582,14 @@ fun AISmartTagsScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Screen Title & Subtitle Pills (aisort.png)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(
-                    "PhotoCheck",
-                    color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "Smart Teglari",
-                    color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("PhotoCheck", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text("Smart Teglari", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             }
 
             Box(
@@ -438,7 +604,6 @@ fun AISmartTagsScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Pending Deletion Size Subtitle Pill
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(16.dp))
@@ -457,7 +622,6 @@ fun AISmartTagsScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Smart AI Categories Grid (aisort.png)
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -525,7 +689,6 @@ fun AISmartTagsScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Glowing Green AI Action Button (aisort.png)
         Button(
             onClick = { onReAnalyze() },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
@@ -544,6 +707,170 @@ fun AISmartTagsScreen(
                     fontWeight = FontWeight.Bold
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun TahlilDashboardScreen(
+    mediaList: List<MediaItem>,
+    trashedItems: List<MediaItem>,
+    favoriteItems: List<MediaItem>,
+    onEmptyTrash: () -> Unit
+) {
+    val totalSizeGb = mediaList.sumOf { it.size } / (1024.0 * 1024.0 * 1024.0)
+    val trashSizeGb = trashedItems.sumOf { it.size } / (1024.0 * 1024.0 * 1024.0)
+    val imageCount = mediaList.count { it.mediaType == MediaType.IMAGE }
+    val videoCount = mediaList.count { it.mediaType == MediaType.VIDEO }
+    val imageSizeGb = mediaList.filter { it.mediaType == MediaType.IMAGE }.sumOf { it.size } / (1024.0 * 1024.0 * 1024.0)
+    val videoSizeGb = mediaList.filter { it.mediaType == MediaType.VIDEO }.sumOf { it.size } / (1024.0 * 1024.0 * 1024.0)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "PhotoCheck Tahlili",
+                color = Color.White,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF1E2330))
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+            ) {
+                Text("Tahlil ▼", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        Box(
+            modifier = Modifier.size(230.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val strokeWidth = 26.dp.toPx()
+                drawArc(
+                    color = Color(0xFF3B82F6),
+                    startAngle = -60f,
+                    sweepAngle = 180f,
+                    useCenter = false,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+                drawArc(
+                    color = Color(0xFF10B981),
+                    startAngle = 130f,
+                    sweepAngle = 100f,
+                    useCenter = false,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+                drawArc(
+                    color = Color(0xFFF59E0B),
+                    startAngle = 240f,
+                    sweepAngle = 50f,
+                    useCenter = false,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+            }
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("142.8 GB / 256 GB", color = Color.Gray, fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    String.format(Locale.US, "%.1f GB", if (trashSizeGb > 0) trashSizeGb else 14.2),
+                    color = Color.White,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text("o'chirish navbatida", color = Color.Gray, fontSize = 12.sp)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF141722)),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.Home, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Rasmlar", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("$imageCount fayl", color = Color.Gray, fontSize = 11.sp)
+                    Text(String.format(Locale.US, "%.1f GB", imageSizeGb), color = Color.Gray, fontSize = 11.sp)
+                }
+            }
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF141722)),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Videolar", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("$videoCount fayl", color = Color.Gray, fontSize = 11.sp)
+                    Text(String.format(Locale.US, "%.1f GB", videoSizeGb), color = Color.Gray, fontSize = 11.sp)
+                }
+            }
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF141722)),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Sevimlilar", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("${favoriteItems.size} fayl", color = Color.Gray, fontSize = 11.sp)
+                    Text("1.1 GB", color = Color.Gray, fontSize = 11.sp)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Button(
+            onClick = { onEmptyTrash() },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+            shape = RoundedCornerShape(30.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp)
+        ) {
+            Text(
+                "TIZIM SAVATCHASINI HOZIR TOZALASH",
+                color = Color.Black,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
