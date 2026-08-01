@@ -62,7 +62,7 @@ fun PhotoCheckApp(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var activeTab by remember { mutableIntStateOf(0) } // 0: Viewer, 1: Galereya, 2: Tag (AI Smart Teglar), 3: Tahlil, 4: Sozlamalar
+    var activeTab by remember { mutableIntStateOf(0) } // 0: Viewer, 1: Galereya, 2: Sevimlilar, 3: Savat, 4: Tag (AI), 5: Tahlil
     val favorites = remember { mutableStateListOf<Long>() }
     val trash = remember { mutableStateListOf<Long>() }
 
@@ -137,7 +137,7 @@ fun PhotoCheckApp(
                     selected = activeTab == 0,
                     onClick = { activeTab = 0 },
                     icon = { Icon(Icons.Default.Home, contentDescription = "Viewer") },
-                    label = { Text("Asosiy", fontSize = 11.sp) },
+                    label = { Text("Asosiy", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFF38BDF8),
                         indicatorColor = Color(0xFF1E293B)
@@ -147,7 +147,7 @@ fun PhotoCheckApp(
                     selected = activeTab == 1,
                     onClick = { activeTab = 1 },
                     icon = { Icon(Icons.Default.List, contentDescription = "Galereya") },
-                    label = { Text("Galereya", fontSize = 11.sp) },
+                    label = { Text("Galereya", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFF38BDF8),
                         indicatorColor = Color(0xFF1E293B)
@@ -156,8 +156,8 @@ fun PhotoCheckApp(
                 NavigationBarItem(
                     selected = activeTab == 2,
                     onClick = { activeTab = 2 },
-                    icon = { Icon(Icons.Default.Star, contentDescription = "Smart Tag") },
-                    label = { Text("Tag", fontSize = 11.sp) },
+                    icon = { Icon(Icons.Default.Star, contentDescription = "Sevimlilar") },
+                    label = { Text("Sevimlilar (${favoriteItems.size})", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFF38BDF8),
                         indicatorColor = Color(0xFF1E293B)
@@ -166,18 +166,28 @@ fun PhotoCheckApp(
                 NavigationBarItem(
                     selected = activeTab == 3,
                     onClick = { activeTab = 3 },
-                    icon = { Icon(Icons.Default.PlayArrow, contentDescription = "Tahlil") },
-                    label = { Text("Tahlil", fontSize = 11.sp) },
+                    icon = { Icon(Icons.Default.Delete, contentDescription = "Savat") },
+                    label = { Text("Savat (${trashedItems.size})", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF38BDF8),
+                        selectedIconColor = Color(0xFFEF4444),
                         indicatorColor = Color(0xFF1E293B)
                     )
                 )
                 NavigationBarItem(
                     selected = activeTab == 4,
                     onClick = { activeTab = 4 },
-                    icon = { Icon(Icons.Default.Info, contentDescription = "Sozlamalar") },
-                    label = { Text("Sozlamalar", fontSize = 11.sp) },
+                    icon = { Icon(Icons.Default.Info, contentDescription = "Tag") },
+                    label = { Text("Tag", fontSize = 10.sp) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Color(0xFF38BDF8),
+                        indicatorColor = Color(0xFF1E293B)
+                    )
+                )
+                NavigationBarItem(
+                    selected = activeTab == 5,
+                    onClick = { activeTab = 5 },
+                    icon = { Icon(Icons.Default.PlayArrow, contentDescription = "Tahlil") },
+                    label = { Text("Tahlil", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color(0xFF38BDF8),
                         indicatorColor = Color(0xFF1E293B)
@@ -194,11 +204,13 @@ fun PhotoCheckApp(
         ) {
             when (activeTab) {
                 0 -> {
+                    // Full-Screen Edge-to-Edge Media Viewer
                     if (currentItem != null) {
                         FullMediaViewerScreen(
                             item = currentItem,
                             totalCount = activeList.size,
                             currentIndex = currentIndex,
+                            trashedCount = trashedItems.size,
                             isFavorite = currentItem.id in favorites,
                             onToggleFavorite = {
                                 if (currentItem.id in favorites) {
@@ -220,6 +232,7 @@ fun PhotoCheckApp(
                                     currentIndex--
                                 }
                             },
+                            onOpenTrashTab = { activeTab = 3 },
                             onShare = {
                                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                     type = if (currentItem.mediaType == MediaType.VIDEO) "video/*" else "image/*"
@@ -240,6 +253,7 @@ fun PhotoCheckApp(
                     }
                 }
                 1 -> {
+                    // Gallery Grid View
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         contentPadding = PaddingValues(12.dp),
@@ -268,6 +282,110 @@ fun PhotoCheckApp(
                     }
                 }
                 2 -> {
+                    // Sevimlilar Tab
+                    if (favoriteItems.isNotEmpty()) {
+                        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                            Text("Sevimlilar (${favoriteItems.size})", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(3),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                items(favoriteItems, key = { it.id }) { item ->
+                                    Box(
+                                        modifier = Modifier
+                                            .aspectRatio(1f)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(Color(0xFF161922))
+                                    ) {
+                                        AsyncImage(
+                                            model = item.uri,
+                                            contentDescription = item.displayName,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                        IconButton(
+                                            onClick = { favorites.remove(item.id) },
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(4.dp)
+                                                .size(24.dp)
+                                                .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                                        ) {
+                                            Icon(Icons.Default.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Sevimlilar ro'yxati bo'sh", color = Color.Gray, fontSize = 16.sp)
+                        }
+                    }
+                }
+                3 -> {
+                    // Savatcha Tab (System Trash View)
+                    if (trashedItems.isNotEmpty()) {
+                        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Savatcha (${trashedItems.size})", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                                Button(
+                                    onClick = { onDeleteMediaItems(trashedItems) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                                    shape = RoundedCornerShape(20.dp)
+                                ) {
+                                    Text("TIZIMDAN O'CHIRISH", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(3),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                items(trashedItems, key = { it.id }) { item ->
+                                    Box(
+                                        modifier = Modifier
+                                            .aspectRatio(1f)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(Color(0xFF161922))
+                                    ) {
+                                        AsyncImage(
+                                            model = item.uri,
+                                            contentDescription = item.displayName,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                        IconButton(
+                                            onClick = { trash.remove(item.id) },
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(4.dp)
+                                                .size(28.dp)
+                                                .background(Color(0xFF38BDF8), CircleShape)
+                                        ) {
+                                            Icon(Icons.Default.Refresh, contentDescription = "Restore", tint = Color.White, modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Savatcha bo'sh", color = Color.Gray, fontSize = 16.sp)
+                        }
+                    }
+                }
+                4 -> {
+                    // PhotoCheck Smart Teglari Screen
                     AISmartTagsScreen(
                         categorizedMedia = categorizedMedia,
                         trashedItems = trashedItems,
@@ -286,7 +404,8 @@ fun PhotoCheckApp(
                         }
                     )
                 }
-                3 -> {
+                5 -> {
+                    // PhotoCheck Tahlili Dashboard
                     TahlilDashboardScreen(
                         mediaList = mediaList,
                         trashedItems = trashedItems,
@@ -295,27 +414,6 @@ fun PhotoCheckApp(
                             onDeleteMediaItems(trashedItems)
                         }
                     )
-                }
-                4 -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Text("Sozlamalar", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF141722)),
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text("PhotoCheck AI v2.5", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("Smart Teglar, MIUI Live Sync va Glassmorphism UI", color = Color.Gray, fontSize = 13.sp)
-                            }
-                        }
-                    }
                 }
             }
 
@@ -354,11 +452,13 @@ fun FullMediaViewerScreen(
     item: MediaItem,
     totalCount: Int,
     currentIndex: Int,
+    trashedCount: Int,
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
     onTrash: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
+    onOpenTrashTab: () -> Unit,
     onShare: () -> Unit,
     onOpenAlbumSheet: () -> Unit
 ) {
@@ -371,6 +471,8 @@ fun FullMediaViewerScreen(
         String.format(Locale.US, "%.1f MB", item.size / (1024.0 * 1024.0))
     }
 
+    val isDraggingUpOrTopRight = offsetY.value < -60f || (offsetY.value < -40f && offsetX.value > 40f)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -378,30 +480,38 @@ fun FullMediaViewerScreen(
             .pointerInput(item.id) {
                 detectDragGestures(
                     onDragEnd = {
-                        if (offsetY.value < -140f) {
+                        // 1. Dragged UP or TOP-RIGHT -> TRASH
+                        if (offsetY.value < -70f || (offsetY.value < -40f && offsetX.value > 40f)) {
                             scope.launch {
-                                offsetY.animateTo(-800f, spring())
+                                offsetX.animateTo(300f, spring())
+                                offsetY.animateTo(-700f, spring())
                                 scale.animateTo(0.2f, spring())
                                 onTrash()
                                 offsetX.snapTo(0f)
                                 offsetY.snapTo(0f)
                                 scale.snapTo(1f)
                             }
-                        } else if (offsetX.value > 150f) {
+                        }
+                        // 2. Dragged RIGHT -> PREVIOUS
+                        else if (offsetX.value > 120f) {
                             scope.launch {
                                 offsetX.animateTo(600f, tween(150))
                                 onPrevious()
                                 offsetX.snapTo(0f)
                                 offsetY.snapTo(0f)
                             }
-                        } else if (offsetX.value < -150f) {
+                        }
+                        // 3. Dragged LEFT -> NEXT
+                        else if (offsetX.value < -120f) {
                             scope.launch {
                                 offsetX.animateTo(-600f, tween(150))
                                 onNext()
                                 offsetX.snapTo(0f)
                                 offsetY.snapTo(0f)
                             }
-                        } else {
+                        }
+                        // Snap back
+                        else {
                             scope.launch {
                                 offsetX.animateTo(0f, spring())
                                 offsetY.animateTo(0f, spring())
@@ -415,7 +525,7 @@ fun FullMediaViewerScreen(
                             offsetX.snapTo(offsetX.value + dragAmount.x)
                             offsetY.snapTo(offsetY.value + dragAmount.y)
                             if (offsetY.value < 0) {
-                                val s = (1f - (kotlin.math.abs(offsetY.value) / 1000f)).coerceIn(0.7f, 1f)
+                                val s = (1f - (kotlin.math.abs(offsetY.value) / 1000f)).coerceIn(0.75f, 1f)
                                 scale.snapTo(s)
                             }
                         }
@@ -444,6 +554,7 @@ fun FullMediaViewerScreen(
             )
         }
 
+        // Top Header Translucent Pill with Top-Right Trash Icon & Counter (aisort.png style)
         Row(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -451,9 +562,9 @@ fun FullMediaViewerScreen(
                 .padding(top = 16.dp, start = 16.dp, end = 16.dp)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(30.dp))
-                .background(Color.Black.copy(alpha = 0.45f))
+                .background(Color.Black.copy(alpha = 0.5f))
                 .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(30.dp))
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -480,15 +591,55 @@ fun FullMediaViewerScreen(
                     fontWeight = FontWeight.Bold
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Close",
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // TOP-RIGHT TRASH ICON WITH RED BADGE COUNTER
+            Box(
+                modifier = Modifier
+                    .clickable { onOpenTrashTab() }
+                    .padding(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Trash",
+                    tint = if (isDraggingUpOrTopRight) Color(0xFFEF4444) else Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+                if (trashedCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .size(16.dp)
+                            .background(Color(0xFFEF4444), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "$trashedCount",
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
 
+        // Visual Drag Target Overlay when dragging up
+        if (isDraggingUpOrTopRight) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 70.dp, end = 24.dp)
+                    .size(70.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFEF4444).copy(alpha = 0.85f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(36.dp))
+            }
+        }
+
+        // Bottom Glassmorphic Floating Dock
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
