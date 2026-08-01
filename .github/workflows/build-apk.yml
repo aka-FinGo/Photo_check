@@ -5,6 +5,9 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build APK
@@ -29,14 +32,14 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace --no-daemon > build_log.txt 2>&1 || {
             echo "=== BUILD FAILED: PUSHING LOGS TO BRANCH ==="
-            git config --global user.name "GitHub Action"
-            git config --global user.email "action@github.com"
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
             git checkout -b build-logs || git checkout build-logs
             cp build_log.txt ../build_log.txt
             cd ..
             git add build_log.txt
             git commit -m "Upload build failure log"
-            git push origin build-logs --force
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/aka-FinGo/Photo_check.git build-logs --force
             exit 1
           }
 
