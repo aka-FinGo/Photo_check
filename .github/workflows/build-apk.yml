@@ -41,34 +41,30 @@ jobs:
           mkdir -p dist
           APK_DIR="android-app/app/build/outputs/apk/debug"
           
-          ARM64_FILE=$(find $APK_DIR -name "*arm64-v8a*.apk" | head -n 1)
-          if [ -z "$ARM64_FILE" ]; then
-            ARM64_FILE=$(find $APK_DIR -name "app-debug.apk" | head -n 1)
-          fi
+          ARM64_FILE=$(find $APK_DIR -name "*arm64-v8a*.apk" -o -name "app-debug.apk" | head -n 1)
           if [ -n "$ARM64_FILE" ]; then
             cp "$ARM64_FILE" dist/PhotoCheck-MyPhone-arm64-v8a.apk
           fi
 
-          UNIVERSAL_FILE=$(find $APK_DIR -name "*universal*.apk" | head -n 1)
-          if [ -z "$UNIVERSAL_FILE" ]; then
-            UNIVERSAL_FILE=$(find $APK_DIR -name "app-debug.apk" | head -n 1)
-          fi
+          UNIVERSAL_FILE=$(find $APK_DIR -name "*universal*.apk" -o -name "app-debug.apk" | head -n 1)
           if [ -n "$UNIVERSAL_FILE" ]; then
             cp "$UNIVERSAL_FILE" dist/PhotoCheck-Universal.apk
           fi
 
       - name: 📱 Mening telefonim uchun APK (ARM64-v8a)
-        if: github.event_name == 'push' || github.event.inputs.apk_type == 'my_phone' || github.event.inputs.apk_type == 'both'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: PhotoCheck-MyPhone-arm64-v8a
           path: dist/PhotoCheck-MyPhone-arm64-v8a.apk
           retention-days: 7
+          if-no-files-found: warn
 
       - name: 🌐 Universal APK (Barcha telefonlar uchun)
-        if: github.event_name == 'push' || github.event.inputs.apk_type == 'universal' || github.event.inputs.apk_type == 'both'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: PhotoCheck-Universal
           path: dist/PhotoCheck-Universal.apk
           retention-days: 7
+          if-no-files-found: warn
