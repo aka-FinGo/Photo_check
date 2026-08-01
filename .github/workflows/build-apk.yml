@@ -23,8 +23,9 @@ jobs:
       - name: APK-ni yig'ish (Assemble APK)
         run: |
           cd android-app
+          export GRADLE_USER_HOME="$GITHUB_WORKSPACE/.gradle_home"
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Fayllarni ajratish va nomlash
         run: |
