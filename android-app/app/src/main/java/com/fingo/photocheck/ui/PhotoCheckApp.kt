@@ -42,10 +42,10 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 enum class UzbekCategory(val displayName: String, val color: Color) {
-    TA'TIL("TA'TIL", Color(0xFFA0E0FF)),
+    TATIL("TA'TIL", Color(0xFFA0E0FF)),
     TABIAT("TABIAT", Color(0xFFB8F0D0)),
     OILA("OILA", Color(0xFFFFD0D8)),
-    DO'STLAR("DO'STLAR", Color(0xFFFFE0B0))
+    DOSTLAR("DO'STLAR", Color(0xFFFFE0B0));
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
