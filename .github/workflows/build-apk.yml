@@ -1,7 +1,9 @@
 name: Build Android APK (PhotoCheck)
 
 on:
-  workflow_dispatch: # Manual trigger only (qo'lda bosilganda yig'iladi)
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
 
 permissions:
   contents: write
