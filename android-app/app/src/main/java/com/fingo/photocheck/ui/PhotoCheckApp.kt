@@ -377,7 +377,7 @@ fun SlideboxViewerScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 12.dp, bottom = 12.dp)
+            .padding(vertical = 12.dp)
     ) {
         // Ref 1 Top Header: Real Album Name Dropdown + Free Storage Pill
         Row(
@@ -425,7 +425,7 @@ fun SlideboxViewerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = 12.dp, horizontal = 12.dp)
+                    .padding(horizontal = 12.dp).padding(top = 12.dp)
                     .clip(RoundedCornerShape(28.dp))
                     .background(Color(0xFF161922))
             )
