@@ -44,13 +44,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-enum class SmartCategory(val displayName: String, val icon: String) {
-    TABIAT("TABIAT", "🌄"),
-    SHAHARLAR("SHAHARLAR", "🏙️"),
-    ODAMLAR("ODAMLAR", "👤"),
-    HAYVONLAR("HAYVONLAR", "🐕"),
-    OZIQ_OVQAT("OZIQ-OVQAT", "🥗"),
-    BARCHASI("BARCHASI", "📁")
+enum class AlbumCategory(val displayName: String, val color: Color, val icon: String) {
+    VACATION("VACATION", Color(0xFFA0E0FF), "🏝️"),
+    NATURE("NATURE", Color(0xFFB8F0D0), "🌄"),
+    FAMILY("FAMILY", Color(0xFFFFD0D8), "👥"),
+    FRIENDS("FRIENDS", Color(0xFFFFE0B0), "🎉"),
+    CAMERA("Camera", Color(0xFFE2E8F0), "📷"),
+    SCREENSHOTS("Screenshots", Color(0xFFCBD5E1), "📱"),
+    TELEGRAM("Telegram", Color(0xFF93C5FD), "✈️"),
+    DOWNLOADS("Downloads", Color(0xFFFDE68A), "📥")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,62 +64,27 @@ fun PhotoCheckApp(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var activeTab by remember { mutableIntStateOf(0) } // 0: Viewer, 1: Galereya, 2: Dublikatlar, 3: Siqish, 4: AI Teglar, 5: Tahlil
+    var activeTab by remember { mutableIntStateOf(0) } // 0: Viewer (ref1), 1: Galereya (ref3), 2: Dublikatlar (czkawka), 3: Siqish (open_squeezer), 4: Tahlil
     val favorites = remember { mutableStateListOf<Long>() }
     val trash = remember { mutableStateListOf<Long>() }
 
     var currentIndex by remember { mutableIntStateOf(0) }
-    var selectedSmartCategory by remember { mutableStateOf(SmartCategory.BARCHASI) }
-    var showAlbumSheet by remember { mutableStateOf(false) }
-    var isAnalyzing by remember { mutableStateOf(false) }
+    var selectedFilter by remember { mutableStateOf("RECENT") }
+    var showDropdownMenu by remember { mutableStateOf(false) }
+    var showAlbumBottomSheet by remember { mutableStateOf(false) }
     var isCompressing by remember { mutableStateOf(false) }
 
-    // Smart Categorization Logic
-    val categorizedMedia = remember(mediaList) {
-        val map = mutableMapOf<SmartCategory, MutableList<MediaItem>>()
-        SmartCategory.values().forEach { map[it] = mutableListOf() }
-
-        mediaList.forEach { item ->
-            val nameLower = item.displayName.lowercase()
-            val bucketLower = item.bucketName.lowercase()
-
-            when {
-                nameLower.contains("cat") || nameLower.contains("dog") || nameLower.contains("pet") || nameLower.contains("animal") || bucketLower.contains("pet") -> {
-                    map[SmartCategory.HAYVONLAR]?.add(item)
-                }
-                nameLower.contains("food") || nameLower.contains("dish") || nameLower.contains("meal") || nameLower.contains("ovqat") || bucketLower.contains("food") -> {
-                    map[SmartCategory.OZIQ_OVQAT]?.add(item)
-                }
-                nameLower.contains("portrait") || nameLower.contains("selfie") || nameLower.contains("face") || nameLower.contains("odam") || bucketLower.contains("selfie") || bucketLower.contains("camera") -> {
-                    map[SmartCategory.ODAMLAR]?.add(item)
-                }
-                nameLower.contains("city") || nameLower.contains("street") || nameLower.contains("building") || nameLower.contains("shahar") -> {
-                    map[SmartCategory.SHAHARLAR]?.add(item)
-                }
-                else -> {
-                    map[SmartCategory.TABIAT]?.add(item)
-                }
-            }
-        }
-        map
-    }
-
-    // Duplicate & Similar Photo Detector Logic (czkawka & dcim-cleaner)
-    val duplicateGroups = remember(mediaList) {
-        mediaList.groupBy { "${it.size / 1024}_${it.displayName.take(5)}" }
-            .filter { it.value.size > 1 }
-            .values.toList()
-    }
-
-    val activeList = remember(mediaList, trash, selectedSmartCategory) {
+    val activeList = remember(mediaList, trash, selectedFilter) {
         mediaList.filter { item ->
             val notInTrash = item.id !in trash
-            val matchCategory = if (selectedSmartCategory == SmartCategory.BARCHASI) {
-                true
-            } else {
-                categorizedMedia[selectedSmartCategory]?.contains(item) == true
+            val matchFilter = when (selectedFilter) {
+                "Camera" -> item.bucketName.equals("Camera", ignoreCase = true) || item.bucketName.equals("DCIM", ignoreCase = true)
+                "Screenshots" -> item.bucketName.contains("Screenshot", ignoreCase = true)
+                "Telegram" -> item.bucketName.contains("Telegram", ignoreCase = true)
+                "Downloads" -> item.bucketName.contains("Download", ignoreCase = true)
+                else -> true
             }
-            notInTrash && matchCategory
+            notInTrash && matchFilter
         }
     }
 
@@ -184,16 +151,6 @@ fun PhotoCheckApp(
                 NavigationBarItem(
                     selected = activeTab == 4,
                     onClick = { activeTab = 4 },
-                    icon = { Icon(Icons.Default.Star, contentDescription = "AI Teglar") },
-                    label = { Text("AI Teglar", fontSize = 10.sp) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF38BDF8),
-                        indicatorColor = Color(0xFF1E293B)
-                    )
-                )
-                NavigationBarItem(
-                    selected = activeTab == 5,
-                    onClick = { activeTab = 5 },
                     icon = { Icon(Icons.Default.PlayArrow, contentDescription = "Tahlil") },
                     label = { Text("Tahlil", fontSize = 10.sp) },
                     colors = NavigationBarItemDefaults.colors(
@@ -212,23 +169,22 @@ fun PhotoCheckApp(
         ) {
             when (activeTab) {
                 0 -> {
-                    // Full-Screen Edge-to-Edge Media Viewer
+                    // Ref 1: Slidebox-Style Fullscreen Media Viewer
                     if (currentItem != null) {
-                        FullMediaViewerScreen(
+                        SlideboxViewerScreen(
                             item = currentItem,
                             totalCount = activeList.size,
                             currentIndex = currentIndex,
                             trashedCount = trashedItems.size,
-                            isFavorite = currentItem.id in favorites,
-                            onToggleFavorite = {
-                                if (currentItem.id in favorites) {
-                                    favorites.remove(currentItem.id)
-                                } else {
-                                    favorites.add(currentItem.id)
-                                }
-                            },
+                            selectedFilter = selectedFilter,
+                            onFilterClick = { showDropdownMenu = true },
                             onTrash = {
                                 trash.add(currentItem.id)
+                            },
+                            onUndo = {
+                                if (trash.isNotEmpty()) {
+                                    trash.removeAt(trash.size - 1)
+                                }
                             },
                             onNext = {
                                 if (currentIndex < activeList.size - 1) {
@@ -240,15 +196,13 @@ fun PhotoCheckApp(
                                     currentIndex--
                                 }
                             },
-                            onOpenTrashTab = { activeTab = 5 },
                             onShare = {
                                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                     type = if (currentItem.mediaType == MediaType.VIDEO) "video/*" else "image/*"
                                     putExtra(Intent.EXTRA_STREAM, currentItem.uri)
                                 }
                                 context.startActivity(Intent.createChooser(shareIntent, "Ulashish"))
-                            },
-                            onOpenAlbumSheet = { showAlbumSheet = true }
+                            }
                         )
                     } else {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -261,36 +215,30 @@ fun PhotoCheckApp(
                     }
                 }
                 1 -> {
-                    // Gallery Grid View
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        contentPadding = PaddingValues(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(activeList, key = { it.id }) { item ->
-                            Box(
-                                modifier = Modifier
-                                    .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFF161922))
-                                    .clickable {
-                                        currentIndex = activeList.indexOf(item)
-                                        activeTab = 0
-                                    }
-                            ) {
-                                AsyncImage(
-                                    model = item.uri,
-                                    contentDescription = item.displayName,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-                        }
-                    }
+                    // Ref 3: PhotoCheck Gallery Grid & Dropdown Menu & Bottom Action Sheet
+                    GalleryScreen(
+                        mediaList = activeList,
+                        selectedFilter = selectedFilter,
+                        showDropdownMenu = showDropdownMenu,
+                        onFilterSelect = { filter ->
+                            selectedFilter = filter
+                            showDropdownMenu = false
+                        },
+                        onToggleDropdown = { showDropdownMenu = !showDropdownMenu },
+                        onItemClick = { item ->
+                            currentIndex = activeList.indexOf(item)
+                            activeTab = 0
+                        },
+                        onOpenActionSheet = { showAlbumBottomSheet = true }
+                    )
                 }
                 2 -> {
                     // Dublikatlar Screen (czkawka engine)
+                    val duplicateGroups = remember(mediaList) {
+                        mediaList.groupBy { "${it.size / 1024}_${it.displayName.take(5)}" }
+                            .filter { it.value.size > 1 }
+                            .values.toList()
+                    }
                     DuplicatesScreen(
                         duplicateGroups = duplicateGroups,
                         onDeleteDuplicates = { items ->
@@ -299,7 +247,7 @@ fun PhotoCheckApp(
                     )
                 }
                 3 -> {
-                    // Media Compressor / Squeezer Screen (open_squeezer engine)
+                    // Media Compressor Screen (open_squeezer engine)
                     CompressorScreen(
                         mediaList = activeList,
                         isCompressing = isCompressing,
@@ -313,27 +261,7 @@ fun PhotoCheckApp(
                     )
                 }
                 4 -> {
-                    // PhotoCheck Smart Teglari Screen (aisort.png design)
-                    AISmartTagsScreen(
-                        categorizedMedia = categorizedMedia,
-                        trashedItems = trashedItems,
-                        isAnalyzing = isAnalyzing,
-                        onReAnalyze = {
-                            scope.launch {
-                                isAnalyzing = true
-                                delay(1200)
-                                isAnalyzing = false
-                            }
-                        },
-                        onSelectCategory = { cat ->
-                            selectedSmartCategory = cat
-                            currentIndex = 0
-                            activeTab = 0
-                        }
-                    )
-                }
-                5 -> {
-                    // PhotoCheck Tahlili Dashboard (gemini2.png design)
+                    // Tahlil Dashboard
                     TahlilDashboardScreen(
                         mediaList = mediaList,
                         trashedItems = trashedItems,
@@ -345,28 +273,467 @@ fun PhotoCheckApp(
                 }
             }
 
-            if (showAlbumSheet) {
+            // Ref 3: Bottom Action Sheet (Create New Album, Add to Favorites, Vacation 2024, etc.)
+            if (showAlbumBottomSheet) {
                 ModalBottomSheet(
-                    onDismissRequest = { showAlbumSheet = false },
+                    onDismissRequest = { showAlbumBottomSheet = false },
                     containerColor = Color(0xFF141722)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
-                        Text("ALBOMGA KO'CHIRISH", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("ALBOM AMALLARI", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(16.dp))
-                        val albums = listOf("Facebook", "Family", "Camera", "Pictures", "Screenshots", "Downloads")
-                        albums.forEach { album ->
-                            Row(
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Create New Album
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1B4332)),
+                                shape = RoundedCornerShape(18.dp),
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable { showAlbumSheet = false }
-                                    .padding(vertical = 12.dp, horizontal = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .weight(1f)
+                                    .height(110.dp)
+                                    .clickable { showAlbumBottomSheet = false }
                             ) {
-                                Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFF38BDF8))
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(album, color = Color.White, fontSize = 15.sp)
+                                Column(
+                                    modifier = Modifier
+                                        .padding(12.dp)
+                                        .fillMaxSize(),
+                                    verticalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF2EC4B6), modifier = Modifier.size(28.dp))
+                                    Text("Create New Album", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
+
+                            // Add to Favorites
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1D3557)),
+                                shape = RoundedCornerShape(18.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(110.dp)
+                                    .clickable { showAlbumBottomSheet = false }
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .padding(12.dp)
+                                        .fillMaxSize(),
+                                    verticalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFF48CAE4), modifier = Modifier.size(28.dp))
+                                    Text("Add to Favorites", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            // Vacation 2024
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF4A154B)),
+                                shape = RoundedCornerShape(18.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(110.dp)
+                                    .clickable { showAlbumBottomSheet = false }
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .padding(12.dp)
+                                        .fillMaxSize(),
+                                    verticalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFE0AAFF), modifier = Modifier.size(28.dp))
+                                    Text("Vacation 2024", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 1. Ref 1: Slidebox-Style Fullscreen Media Viewer with Swipe-Up to Trash & Category Pills
+@Composable
+fun SlideboxViewerScreen(
+    item: MediaItem,
+    totalCount: Int,
+    currentIndex: Int,
+    trashedCount: Int,
+    selectedFilter: String,
+    onFilterClick: () -> Unit,
+    onTrash: () -> Unit,
+    onUndo: () -> Unit,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
+    onShare: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val offsetX = remember { Animatable(0f) }
+    val offsetY = remember { Animatable(0f) }
+    val scale = remember { Animatable(1f) }
+
+    val isDraggingUp = offsetY.value < -50f
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 12.dp, bottom = 12.dp)
+    ) {
+        // Ref 1 Top Header: RECENT ▼ Dropdown button + 💾 2.4 GB free Pill
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFF1A1D26))
+                    .clickable { onFilterClick() }
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("$selectedFilter ▼", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFF1E2330))
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("2.4 GB free", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Ref 1 Card Stack Container with Swipe Up to Trash Gesture
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            // Card Stack Shadow Layer Behind Main Card
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 12.dp, horizontal = 12.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(Color(0xFF161922))
+            )
+
+            // Main Active Media Card
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(Color.Black)
+                    .graphicsLayer {
+                        translationX = offsetX.value
+                        translationY = offsetY.value
+                        scaleX = scale.value
+                        scaleY = scale.value
+                    }
+                    .pointerInput(item.id) {
+                        detectDragGestures(
+                            onDragEnd = {
+                                if (offsetY.value < -70f || (offsetY.value < -40f && offsetX.value > 40f)) {
+                                    scope.launch {
+                                        offsetY.animateTo(-700f, spring())
+                                        scale.animateTo(0.2f, spring())
+                                        onTrash()
+                                        offsetX.snapTo(0f)
+                                        offsetY.snapTo(0f)
+                                        scale.snapTo(1f)
+                                    }
+                                } else if (offsetX.value > 120f) {
+                                    scope.launch {
+                                        offsetX.animateTo(600f, tween(150))
+                                        onPrevious()
+                                        offsetX.snapTo(0f)
+                                        offsetY.snapTo(0f)
+                                    }
+                                } else if (offsetX.value < -120f) {
+                                    scope.launch {
+                                        offsetX.animateTo(-600f, tween(150))
+                                        onNext()
+                                        offsetX.snapTo(0f)
+                                        offsetY.snapTo(0f)
+                                    }
+                                } else {
+                                    scope.launch {
+                                        offsetX.animateTo(0f, spring())
+                                        offsetY.animateTo(0f, spring())
+                                        scale.animateTo(1f, spring())
+                                    }
+                                }
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                scope.launch {
+                                    offsetX.snapTo(offsetX.value + dragAmount.x)
+                                    offsetY.snapTo(offsetY.value + dragAmount.y)
+                                    if (offsetY.value < 0) {
+                                        val s = (1f - (kotlin.math.abs(offsetY.value) / 1000f)).coerceIn(0.75f, 1f)
+                                        scale.snapTo(s)
+                                    }
+                                }
+                            }
+                        )
+                    }
+            ) {
+                AsyncImage(
+                    model = item.uri,
+                    contentDescription = item.displayName,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Ref 1: Floating Glassmorphic Trash Icon at Top-Right with +12 Badge
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.Black.copy(alpha = 0.45f))
+                        .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+                        .padding(12.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Trash Target",
+                        tint = if (isDraggingUp) Color(0xFFEF4444) else Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    if (trashedCount > 0) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 6.dp, y = (-6).dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF38BDF8))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text("+$trashedCount", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Ref 1: Paging Indicator Dots (── • •)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(28.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.White)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(Color.Gray)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(Color.Gray)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Ref 1: Album Category Pills Row (VACATION, NATURE, FAMILY, FRIENDS)
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val categories = listOf(
+                AlbumCategory.VACATION,
+                AlbumCategory.NATURE,
+                AlbumCategory.FAMILY,
+                AlbumCategory.FRIENDS
+            )
+
+            items(categories) { cat ->
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(cat.color)
+                        .clickable { onNext() }
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        cat.displayName,
+                        color = Color.Black,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Ref 1 Bottom Action Bar: UNDO, NEXT, SHARE
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // UNDO
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clickable { onUndo() }
+            ) {
+                Icon(Icons.Default.Refresh, contentDescription = "Undo", tint = Color.White, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("UNDO", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+
+            // NEXT
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clickable { onNext() }
+            ) {
+                Icon(Icons.Default.ArrowForward, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("NEXT", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+
+            // SHARE
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clickable { onShare() }
+            ) {
+                Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("SHARE", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+// 2. Ref 3: PhotoCheck Gallery Screen & Dropdown Album Selector & Bottom Action Sheet
+@Composable
+fun GalleryScreen(
+    mediaList: List<MediaItem>,
+    selectedFilter: String,
+    showDropdownMenu: Boolean,
+    onFilterSelect: (String) -> Unit,
+    onToggleDropdown: () -> Unit,
+    onItemClick: (MediaItem) -> Unit,
+    onOpenActionSheet: () -> Unit
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            // Ref 3 Top Header: PhotoCheck Title + RECENT ▼ Dropdown button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("PhotoCheck", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0xFF1E2330))
+                        .clickable { onToggleDropdown() }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Text("$selectedFilter ▼", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Ref 3 Grid View (3 columns with 16.dp rounded corners)
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(mediaList, key = { it.id }) { item ->
+                    Box(
+                        modifier = Modifier
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFF161922))
+                            .clickable { onItemClick(item) }
+                    ) {
+                        AsyncImage(
+                            model = item.uri,
+                            contentDescription = item.displayName,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            }
+        }
+
+        // Ref 3 Floating Glassmorphic Dropdown Menu (Camera, Screenshots, Telegram, Family, Downloads)
+        if (showDropdownMenu) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 60.dp, end = 16.dp)
+                    .width(200.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFF1E2330).copy(alpha = 0.95f))
+                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
+                    .padding(8.dp)
+            ) {
+                Column {
+                    val filters = listOf(
+                        "RECENT" to "📁",
+                        "Camera" to "📷",
+                        "Screenshots" to "📱",
+                        "Telegram" to "✈️",
+                        "Family" to "👥",
+                        "Downloads" to "📥"
+                    )
+                    filters.forEach { (name, icon) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { onFilterSelect(name) }
+                                .padding(vertical = 10.dp, horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(icon, fontSize = 16.sp)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -494,409 +861,6 @@ fun CompressorScreen(
                 CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(24.dp))
             } else {
                 Text("BARCHA MEDIA FAYLLARNI SIQISH (SIFATNI SAQLAGAN HOLDA)", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-@Composable
-fun FullMediaViewerScreen(
-    item: MediaItem,
-    totalCount: Int,
-    currentIndex: Int,
-    trashedCount: Int,
-    isFavorite: Boolean,
-    onToggleFavorite: () -> Unit,
-    onTrash: () -> Unit,
-    onNext: () -> Unit,
-    onPrevious: () -> Unit,
-    onOpenTrashTab: () -> Unit,
-    onShare: () -> Unit,
-    onOpenAlbumSheet: () -> Unit
-) {
-    val scope = rememberCoroutineScope()
-    val offsetX = remember { Animatable(0f) }
-    val offsetY = remember { Animatable(0f) }
-    val scale = remember { Animatable(1f) }
-
-    val fileSizeMb = remember(item.size) {
-        String.format(Locale.US, "%.1f MB", item.size / (1024.0 * 1024.0))
-    }
-
-    val isDraggingUpOrTopRight = offsetY.value < -60f || (offsetY.value < -40f && offsetX.value > 40f)
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .pointerInput(item.id) {
-                detectDragGestures(
-                    onDragEnd = {
-                        if (offsetY.value < -70f || (offsetY.value < -40f && offsetX.value > 40f)) {
-                            scope.launch {
-                                offsetX.animateTo(300f, spring())
-                                offsetY.animateTo(-700f, spring())
-                                scale.animateTo(0.2f, spring())
-                                onTrash()
-                                offsetX.snapTo(0f)
-                                offsetY.snapTo(0f)
-                                scale.snapTo(1f)
-                            }
-                        } else if (offsetX.value > 120f) {
-                            scope.launch {
-                                offsetX.animateTo(600f, tween(150))
-                                onPrevious()
-                                offsetX.snapTo(0f)
-                                offsetY.snapTo(0f)
-                            }
-                        } else if (offsetX.value < -120f) {
-                            scope.launch {
-                                offsetX.animateTo(-600f, tween(150))
-                                onNext()
-                                offsetX.snapTo(0f)
-                                offsetY.snapTo(0f)
-                            }
-                        } else {
-                            scope.launch {
-                                offsetX.animateTo(0f, spring())
-                                offsetY.animateTo(0f, spring())
-                                scale.animateTo(1f, spring())
-                            }
-                        }
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        scope.launch {
-                            offsetX.snapTo(offsetX.value + dragAmount.x)
-                            offsetY.snapTo(offsetY.value + dragAmount.y)
-                            if (offsetY.value < 0) {
-                                val s = (1f - (kotlin.math.abs(offsetY.value) / 1000f)).coerceIn(0.75f, 1f)
-                                scale.snapTo(s)
-                            }
-                        }
-                    }
-                )
-            }
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    translationX = offsetX.value
-                    translationY = offsetY.value
-                    scaleX = scale.value
-                    scaleY = scale.value
-                }
-        ) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(item.uri)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = item.displayName,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-                .padding(top = 16.dp, start = 16.dp, end = 16.dp)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(30.dp))
-                .background(Color.Black.copy(alpha = 0.5f))
-                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(30.dp))
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = item.displayName,
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White.copy(alpha = 0.2f))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = if (item.mediaType == MediaType.VIDEO) "4K 60fps" else fileSizeMb,
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Box(
-                modifier = Modifier
-                    .clickable { onOpenTrashTab() }
-                    .padding(4.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Trash",
-                    tint = if (isDraggingUpOrTopRight) Color(0xFFEF4444) else Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-                if (trashedCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .size(16.dp)
-                            .background(Color(0xFFEF4444), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "$trashedCount",
-                            color = Color.White,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-
-        if (isDraggingUpOrTopRight) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 70.dp, end = 24.dp)
-                    .size(70.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFFEF4444).copy(alpha = 0.85f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(36.dp))
-            }
-        }
-
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 20.dp, start = 16.dp, end = 16.dp)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(28.dp))
-                .background(Color.Black.copy(alpha = 0.65f))
-                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(28.dp))
-                .padding(vertical = 12.dp, horizontal = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clickable { onShare() }
-            ) {
-                Icon(Icons.Default.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("ULASHISH", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clickable { onOpenAlbumSheet() }
-            ) {
-                Icon(Icons.Default.Home, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("ALBOMGA...", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clickable { onToggleFavorite() }
-            ) {
-                Icon(
-                    Icons.Default.Star,
-                    contentDescription = null,
-                    tint = if (isFavorite) Color(0xFF38BDF8) else Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("SEVIMLI", color = if (isFavorite) Color(0xFF38BDF8) else Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clickable { onTrash() }
-            ) {
-                Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(22.dp))
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("SAVATCHAGA", color = Color(0xFFEF4444), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-@Composable
-fun AISmartTagsScreen(
-    categorizedMedia: Map<SmartCategory, List<MediaItem>>,
-    trashedItems: List<MediaItem>,
-    isAnalyzing: Boolean,
-    onReAnalyze: () -> Unit,
-    onSelectCategory: (SmartCategory) -> Unit
-) {
-    val trashSizeGb = trashedItems.sumOf { it.size } / (1024.0 * 1024.0 * 1024.0)
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(30.dp))
-                .background(Color(0xFF1E2634))
-                .border(1.dp, Color(0xFF10B981).copy(alpha = 0.4f), RoundedCornerShape(30.dp))
-                .padding(vertical = 10.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Synced with MIUI Gallery", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .background(Color(0xFF10B981), CircleShape)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text("PhotoCheck", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                Text("Smart Teglari", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFF1E2330))
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
-            ) {
-                Text("TURI ▼", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF1B1B26))
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                String.format(Locale.US, "%.1f GB Pending Deletion", if (trashSizeGb > 0) trashSizeGb else 14.2),
-                color = Color.Gray,
-                fontSize = 12.sp
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.weight(1f)
-        ) {
-            val categories = listOf(
-                SmartCategory.TABIAT,
-                SmartCategory.SHAHARLAR,
-                SmartCategory.ODAMLAR,
-                SmartCategory.HAYVONLAR,
-                SmartCategory.OZIQ_OVQAT
-            )
-
-            items(categories) { cat ->
-                val count = categorizedMedia[cat]?.size ?: 0
-                val sampleItem = categorizedMedia[cat]?.firstOrNull()
-
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF141722)),
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                        .clickable { onSelectCategory(cat) }
-                        .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.3f), RoundedCornerShape(20.dp))
-                ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        if (sampleItem != null) {
-                            AsyncImage(
-                                model = sampleItem.uri,
-                                contentDescription = cat.displayName,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = 0.45f))
-                            )
-                        }
-
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(14.dp)
-                        ) {
-                            Text(
-                                "${cat.icon} ${cat.displayName}",
-                                color = Color.White,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                "$count rasm",
-                                color = Color.White.copy(alpha = 0.8f),
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Button(
-            onClick = { onReAnalyze() },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-            shape = RoundedCornerShape(30.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp)
-        ) {
-            if (isAnalyzing) {
-                CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(24.dp))
-            } else {
-                Text(
-                    "AI ANALIZINI QAYTADAN BOSHLASH",
-                    color = Color.Black,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
             }
         }
     }
