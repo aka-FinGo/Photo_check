@@ -1,0 +1,224 @@
+{
+  "communities": {
+    "0": [
+      "web_demo_app_mediasorterapp",
+      "web_demo_app_mediasorterapp_bindcarddrag",
+      "web_demo_app_mediasorterapp_constructor",
+      "web_demo_app_mediasorterapp_handledragoverlays",
+      "web_demo_app_mediasorterapp_init",
+      "web_demo_app_mediasorterapp_renderanalytics",
+      "web_demo_app_mediasorterapp_renderfavorites",
+      "web_demo_app_mediasorterapp_resetoverlays",
+      "web_demo_app_mediasorterapp_setupcontrolbuttons",
+      "web_demo_app_mediasorterapp_setupfolderchips",
+      "web_demo_app_mediasorterapp_setuplightboxevents",
+      "web_demo_app_mediasorterapp_setupnavigation",
+      "web_demo_app_mediasorterapp_showscreen",
+      "web_demo_app_mediasorterapp_updatetime"
+    ],
+    "1": [
+      "android_app_app_src_main_java_com_fingo_photocheck_mainactivity",
+      "android_app_app_src_main_java_com_fingo_photocheck_mainactivity_mainactivity",
+      "android_app_app_src_main_java_com_fingo_photocheck_mainactivity_mainactivity_loadmedia",
+      "android_app_app_src_main_java_com_fingo_photocheck_mainactivity_mainactivity_oncreate",
+      "android_app_app_src_main_java_com_fingo_photocheck_mainactivity_mainactivity_requeststoragepermissions",
+      "android_app_app_src_main_java_com_fingo_photocheck_repository_mediarepository",
+      "android_app_app_src_main_java_com_fingo_photocheck_repository_mediarepository_mediarepository",
+      "android_app_app_src_main_java_com_fingo_photocheck_repository_mediarepository_mediarepository_fetchmediaitems",
+      "android_app_app_src_main_java_com_fingo_photocheck_ui_theme_theme",
+      "android_app_app_src_main_java_com_fingo_photocheck_ui_theme_theme_photochecktheme",
+      "bundle",
+      "componentactivity"
+    ],
+    "2": [
+      "web_demo_app_mediasorterapp_getavailablemedia",
+      "web_demo_app_mediasorterapp_openlightbox",
+      "web_demo_app_mediasorterapp_queuedelete",
+      "web_demo_app_mediasorterapp_renderstack",
+      "web_demo_app_mediasorterapp_rendertrash",
+      "web_demo_app_mediasorterapp_resetdemo",
+      "web_demo_app_mediasorterapp_setuptrashevents",
+      "web_demo_app_mediasorterapp_showtoast",
+      "web_demo_app_mediasorterapp_swipecard",
+      "web_demo_app_mediasorterapp_togglefavorite",
+      "web_demo_app_mediasorterapp_updatebadges"
+    ],
+    "3": [
+      "android_app_app_src_main_java_com_fingo_photocheck_model_mediaitem_mediaitem",
+      "android_app_app_src_main_java_com_fingo_photocheck_ui_photocheckapp",
+      "android_app_app_src_main_java_com_fingo_photocheck_ui_photocheckapp_analyticsscreen",
+      "android_app_app_src_main_java_com_fingo_photocheck_ui_photocheckapp_favoritesscreen",
+      "android_app_app_src_main_java_com_fingo_photocheck_ui_photocheckapp_fullscreenmediaviewer",
+      "android_app_app_src_main_java_com_fingo_photocheck_ui_photocheckapp_photocheckapp",
+      "android_app_app_src_main_java_com_fingo_photocheck_ui_photocheckapp_sorterscreen",
+      "android_app_app_src_main_java_com_fingo_photocheck_ui_photocheckapp_trashscreen"
+    ],
+    "4": [
+      "android_app_app_src_main_java_com_fingo_photocheck_model_mediaitem",
+      "android_app_app_src_main_java_com_fingo_photocheck_model_mediaitem_mediatype",
+      "android_app_app_src_main_java_com_fingo_photocheck_model_mediaitem_mediatype_image",
+      "android_app_app_src_main_java_com_fingo_photocheck_model_mediaitem_mediatype_video"
+    ],
+    "5": [
+      "web_demo_app",
+      "web_demo_app_dom",
+      "web_demo_app_state"
+    ],
+    "6": [
+      "android_app_gradlew",
+      "android_app_gradlew__entry"
+    ],
+    "7": [
+      "android_app_app_build_gradle"
+    ],
+    "8": [
+      "android_app_build_gradle"
+    ],
+    "9": [
+      "android_app_settings_gradle"
+    ]
+  },
+  "cohesion": {
+    "0": 0.27472527472527475,
+    "1": 0.19696969696969696,
+    "2": 0.41818181818181815,
+    "3": 0.6071428571428571,
+    "4": 0.5,
+    "5": 0.6666666666666666,
+    "6": 1.0,
+    "7": 1.0,
+    "8": 1.0,
+    "9": 1.0
+  },
+  "gods": [
+    {
+      "id": "web_demo_app_mediasorterapp",
+      "label": "MediaSorterApp",
+      "degree": 25
+    },
+    {
+      "id": "android_app_app_src_main_java_com_fingo_photocheck_model_mediaitem_mediaitem",
+      "label": "MediaItem",
+      "degree": 8
+    },
+    {
+      "id": "android_app_app_src_main_java_com_fingo_photocheck_ui_photocheckapp_photocheckapp",
+      "label": "PhotoCheckApp()",
+      "degree": 8
+    },
+    {
+      "id": "android_app_app_src_main_java_com_fingo_photocheck_mainactivity_mainactivity",
+      "label": "MainActivity",
+      "degree": 6
+    },
+    {
+      "id": "android_app_app_src_main_java_com_fingo_photocheck_repository_mediarepository_mediarepository",
+      "label": "MediaRepository",
+      "degree": 4
+    },
+    {
+      "id": "android_app_app_src_main_java_com_fingo_photocheck_model_mediaitem_mediatype",
+      "label": "MediaType",
+      "degree": 3
+    },
+    {
+      "id": "android_app_app_src_main_java_com_fingo_photocheck_ui_photocheckapp_sorterscreen",
+      "label": "SorterScreen()",
+      "degree": 3
+    },
+    {
+      "id": "android_app_app_src_main_java_com_fingo_photocheck_ui_photocheckapp_favoritesscreen",
+      "label": "FavoritesScreen()",
+      "degree": 3
+    },
+    {
+      "id": "android_app_app_src_main_java_com_fingo_photocheck_ui_photocheckapp_trashscreen",
+      "label": "TrashScreen()",
+      "degree": 3
+    },
+    {
+      "id": "android_app_app_src_main_java_com_fingo_photocheck_ui_photocheckapp_fullscreenmediaviewer",
+      "label": "FullScreenMediaViewer()",
+      "degree": 3
+    }
+  ],
+  "surprises": [
+    {
+      "source": "MainActivity",
+      "target": "MediaRepository",
+      "source_files": [
+        "android-app/app/src/main/java/com/fingo/photocheck/MainActivity.kt",
+        "android-app/app/src/main/java/com/fingo/photocheck/repository/MediaRepository.kt"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "cross-file semantic connection"
+    },
+    {
+      "source": "AnalyticsScreen()",
+      "target": "MediaItem",
+      "source_files": [
+        "android-app/app/src/main/java/com/fingo/photocheck/ui/PhotoCheckApp.kt",
+        "android-app/app/src/main/java/com/fingo/photocheck/model/MediaItem.kt"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "cross-file semantic connection"
+    },
+    {
+      "source": "FavoritesScreen()",
+      "target": "MediaItem",
+      "source_files": [
+        "android-app/app/src/main/java/com/fingo/photocheck/ui/PhotoCheckApp.kt",
+        "android-app/app/src/main/java/com/fingo/photocheck/model/MediaItem.kt"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "cross-file semantic connection"
+    },
+    {
+      "source": "FullScreenMediaViewer()",
+      "target": "MediaItem",
+      "source_files": [
+        "android-app/app/src/main/java/com/fingo/photocheck/ui/PhotoCheckApp.kt",
+        "android-app/app/src/main/java/com/fingo/photocheck/model/MediaItem.kt"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "cross-file semantic connection"
+    },
+    {
+      "source": "PhotoCheckApp()",
+      "target": "MediaItem",
+      "source_files": [
+        "android-app/app/src/main/java/com/fingo/photocheck/ui/PhotoCheckApp.kt",
+        "android-app/app/src/main/java/com/fingo/photocheck/model/MediaItem.kt"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "cross-file semantic connection"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `MediaSorterApp` connect `MediaSorterApp` to `.renderStack`, `app.js`?",
+      "why": "High betweenness centrality (0.158) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `PhotoCheckApp()` connect `MediaItem` to `MainActivity`?",
+      "why": "High betweenness centrality (0.065) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `MediaItem` connect `MediaItem` to `MainActivity`, `MediaType`?",
+      "why": "High betweenness centrality (0.059) - this node is a cross-community bridge."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `IMAGE`, `VIDEO`, `state` to the rest of the system?",
+      "why": "4 weakly-connected nodes found - possible documentation gaps or missing edges."
+    }
+  ]
+}

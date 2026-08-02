@@ -378,7 +378,7 @@ fun SlideboxViewerScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 12.dp, bottom = 12.dp)
+            .padding(vertical = 12.dp)
     ) {
         // Ref 1 Top Header: RECENT ▼ Dropdown button + 💾 2.4 GB free Pill
         Row(
@@ -409,7 +409,7 @@ fun SlideboxViewerScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("2.4 GB free", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Text("2.4 GB bo'sh", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -427,7 +427,7 @@ fun SlideboxViewerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = 12.dp, horizontal = 12.dp)
+                    .padding(horizontal = 12.dp).padding(top = 12.dp)
                     .clip(RoundedCornerShape(28.dp))
                     .background(Color(0xFF161922))
             )
