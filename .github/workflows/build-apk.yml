@@ -1,9 +1,7 @@
 name: Build Android APK (PhotoCheck)
 
 on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
+  workflow_dispatch: # Manual trigger only (qo'lda bosilganda yig'iladi)
 
 permissions:
   contents: write
@@ -49,23 +47,15 @@ jobs:
           FOUND_APK=$(find android-app/app/build/outputs/apk -name "*.apk" | head -n 1)
           echo "Found APK: $FOUND_APK"
           if [ -n "$FOUND_APK" ]; then
-            cp "$FOUND_APK" dist/PhotoCheck-MyPhone-arm64-v8a.apk
-            cp "$FOUND_APK" dist/PhotoCheck-Universal.apk
+            cp "$FOUND_APK" dist/PhotoCheck.apk
           else
             echo "No APK generated"
             exit 1
           fi
 
-      - name: 📱 Mening telefonim uchun APK (ARM64-v8a)
+      - name: 📱 PhotoCheck APK
         uses: actions/upload-artifact@v4
         with:
-          name: PhotoCheck-MyPhone-arm64-v8a
-          path: dist/PhotoCheck-MyPhone-arm64-v8a.apk
-          retention-days: 7
-
-      - name: 🌐 Universal APK (Barcha telefonlar uchun)
-        uses: actions/upload-artifact@v4
-        with:
-          name: PhotoCheck-Universal
-          path: dist/PhotoCheck-Universal.apk
+          name: PhotoCheck-APK
+          path: dist/PhotoCheck.apk
           retention-days: 7
