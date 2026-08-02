@@ -1,7 +1,6 @@
 package com.fingo.photocheck.ui
 
 import android.content.Intent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -33,26 +32,20 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.fingo.photocheck.model.MediaItem
 import com.fingo.photocheck.model.MediaType
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-enum class AlbumCategory(val displayName: String, val color: Color, val icon: String) {
-    VACATION("VACATION", Color(0xFFA0E0FF), "🏝️"),
-    NATURE("NATURE", Color(0xFFB8F0D0), "🌄"),
-    FAMILY("FAMILY", Color(0xFFFFD0D8), "👥"),
-    FRIENDS("FRIENDS", Color(0xFFFFE0B0), "🎉"),
-    CAMERA("Camera", Color(0xFFE2E8F0), "📷"),
-    SCREENSHOTS("Screenshots", Color(0xFFCBD5E1), "📱"),
-    TELEGRAM("Telegram", Color(0xFF93C5FD), "✈️"),
-    DOWNLOADS("Downloads", Color(0xFFFDE68A), "📥")
+enum class UzbekCategory(val displayName: String, val color: Color) {
+    TA'TIL("TA'TIL", Color(0xFFA0E0FF)),
+    TABIAT("TABIAT", Color(0xFFB8F0D0)),
+    OILA("OILA", Color(0xFFFFD0D8)),
+    DO'STLAR("DO'STLAR", Color(0xFFFFE0B0))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,12 +57,19 @@ fun PhotoCheckApp(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var activeTab by remember { mutableIntStateOf(0) } // 0: Viewer (ref1), 1: Galereya (ref3), 2: Dublikatlar (czkawka), 3: Siqish (open_squeezer), 4: Tahlil
+    var activeTab by remember { mutableIntStateOf(0) }
     val favorites = remember { mutableStateListOf<Long>() }
     val trash = remember { mutableStateListOf<Long>() }
 
     var currentIndex by remember { mutableIntStateOf(0) }
-    var selectedFilter by remember { mutableStateOf("RECENT") }
+    
+    // Dynamically extract real albums present on the user's device!
+    val realAlbums = remember(mediaList) {
+        val albums = mediaList.map { it.bucketName }.filter { it.isNotBlank() }.distinct().sorted()
+        if (albums.isEmpty()) listOf("BARCHA FAYLLAR") else listOf("BARCHA FAYLLAR") + albums
+    }
+
+    var selectedFilter by remember { mutableStateOf("BARCHA FAYLLAR") }
     var showDropdownMenu by remember { mutableStateOf(false) }
     var showAlbumBottomSheet by remember { mutableStateOf(false) }
     var isCompressing by remember { mutableStateOf(false) }
@@ -77,12 +77,10 @@ fun PhotoCheckApp(
     val activeList = remember(mediaList, trash, selectedFilter) {
         mediaList.filter { item ->
             val notInTrash = item.id !in trash
-            val matchFilter = when (selectedFilter) {
-                "Camera" -> item.bucketName.equals("Camera", ignoreCase = true) || item.bucketName.equals("DCIM", ignoreCase = true)
-                "Screenshots" -> item.bucketName.contains("Screenshot", ignoreCase = true)
-                "Telegram" -> item.bucketName.contains("Telegram", ignoreCase = true)
-                "Downloads" -> item.bucketName.contains("Download", ignoreCase = true)
-                else -> true
+            val matchFilter = if (selectedFilter == "BARCHA FAYLLAR") {
+                true
+            } else {
+                item.bucketName.equals(selectedFilter, ignoreCase = true)
             }
             notInTrash && matchFilter
         }
@@ -169,7 +167,7 @@ fun PhotoCheckApp(
         ) {
             when (activeTab) {
                 0 -> {
-                    // Ref 1: Slidebox-Style Fullscreen Media Viewer
+                    // Ref 1: Fullscreen Media Viewer
                     if (currentItem != null) {
                         SlideboxViewerScreen(
                             item = currentItem,
@@ -209,15 +207,16 @@ fun PhotoCheckApp(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(64.dp))
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Text("Barcha media saralandi!", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                Text("Barcha fayllar saralandi!", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
                 1 -> {
-                    // Ref 3: PhotoCheck Gallery Grid & Dropdown Menu & Bottom Action Sheet
+                    // Ref 3: PhotoCheck Gallery Grid with Real Device Albums
                     GalleryScreen(
                         mediaList = activeList,
+                        realAlbums = realAlbums,
                         selectedFilter = selectedFilter,
                         showDropdownMenu = showDropdownMenu,
                         onFilterSelect = { filter ->
@@ -273,7 +272,7 @@ fun PhotoCheckApp(
                 }
             }
 
-            // Ref 3: Bottom Action Sheet (Create New Album, Add to Favorites, Vacation 2024, etc.)
+            // Ref 3: Uzbek Bottom Album Action Sheet
             if (showAlbumBottomSheet) {
                 ModalBottomSheet(
                     onDismissRequest = { showAlbumBottomSheet = false },
@@ -286,7 +285,7 @@ fun PhotoCheckApp(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            // Create New Album
+                            // Yangi albom yaratish
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1B4332)),
                                 shape = RoundedCornerShape(18.dp),
@@ -302,11 +301,11 @@ fun PhotoCheckApp(
                                     verticalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF2EC4B6), modifier = Modifier.size(28.dp))
-                                    Text("Create New Album", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text("Yangi albom yaratish", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
 
-                            // Add to Favorites
+                            // Saralanganlarga qo'shish
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1D3557)),
                                 shape = RoundedCornerShape(18.dp),
@@ -322,11 +321,11 @@ fun PhotoCheckApp(
                                     verticalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFF48CAE4), modifier = Modifier.size(28.dp))
-                                    Text("Add to Favorites", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text("Saralanganlar", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
 
-                            // Vacation 2024
+                            // Ta'til 2024
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFF4A154B)),
                                 shape = RoundedCornerShape(18.dp),
@@ -342,7 +341,7 @@ fun PhotoCheckApp(
                                     verticalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFE0AAFF), modifier = Modifier.size(28.dp))
-                                    Text("Vacation 2024", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text("Ta'til 2024", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -353,7 +352,7 @@ fun PhotoCheckApp(
     }
 }
 
-// 1. Ref 1: Slidebox-Style Fullscreen Media Viewer with Swipe-Up to Trash & Category Pills
+// 1. Ref 1: Slidebox Viewer with Uzbek Labels & Swipe Up to Trash
 @Composable
 fun SlideboxViewerScreen(
     item: MediaItem,
@@ -380,7 +379,7 @@ fun SlideboxViewerScreen(
             .fillMaxSize()
             .padding(top = 12.dp, bottom = 12.dp)
     ) {
-        // Ref 1 Top Header: RECENT ▼ Dropdown button + 💾 2.4 GB free Pill
+        // Ref 1 Top Header: Real Album Name Dropdown + Free Storage Pill
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -409,21 +408,20 @@ fun SlideboxViewerScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("2.4 GB free", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Text("2.4 GB bo'sh", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Ref 1 Card Stack Container with Swipe Up to Trash Gesture
+        // Ref 1 Card Stack Container
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         ) {
-            // Card Stack Shadow Layer Behind Main Card
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -432,7 +430,6 @@ fun SlideboxViewerScreen(
                     .background(Color(0xFF161922))
             )
 
-            // Main Active Media Card
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -499,7 +496,7 @@ fun SlideboxViewerScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Ref 1: Floating Glassmorphic Trash Icon at Top-Right with +12 Badge
+                // Ref 1: Glassmorphic Trash Icon with Cyan Badge
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -511,7 +508,7 @@ fun SlideboxViewerScreen(
                 ) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "Trash Target",
+                        contentDescription = "Savat",
                         tint = if (isDraggingUp) Color(0xFFEF4444) else Color.White,
                         modifier = Modifier.size(28.dp)
                     )
@@ -533,7 +530,7 @@ fun SlideboxViewerScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Ref 1: Paging Indicator Dots (── • •)
+        // Ref 1: Paging Dots
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
@@ -547,36 +544,19 @@ fun SlideboxViewerScreen(
                     .background(Color.White)
             )
             Spacer(modifier = Modifier.width(6.dp))
-            Box(
-                modifier = Modifier
-                    .size(6.dp)
-                    .clip(CircleShape)
-                    .background(Color.Gray)
-            )
+            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color.Gray))
             Spacer(modifier = Modifier.width(6.dp))
-            Box(
-                modifier = Modifier
-                    .size(6.dp)
-                    .clip(CircleShape)
-                    .background(Color.Gray)
-            )
+            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color.Gray))
         }
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Ref 1: Album Category Pills Row (VACATION, NATURE, FAMILY, FRIENDS)
+        // Uzbek Category Pills
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            val categories = listOf(
-                AlbumCategory.VACATION,
-                AlbumCategory.NATURE,
-                AlbumCategory.FAMILY,
-                AlbumCategory.FRIENDS
-            )
-
-            items(categories) { cat ->
+            items(UzbekCategory.values()) { cat ->
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
@@ -596,7 +576,7 @@ fun SlideboxViewerScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Ref 1 Bottom Action Bar: UNDO, NEXT, SHARE
+        // Uzbek Action Buttons (ORTGA QAYTARISH, KEYINGISI, ULASHISH)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -604,43 +584,41 @@ fun SlideboxViewerScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // UNDO
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.clickable { onUndo() }
             ) {
-                Icon(Icons.Default.Refresh, contentDescription = "Undo", tint = Color.White, modifier = Modifier.size(24.dp))
+                Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("UNDO", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("ORTGA QAYTARISH", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
 
-            // NEXT
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.clickable { onNext() }
             ) {
-                Icon(Icons.Default.ArrowForward, contentDescription = "Next", tint = Color.White, modifier = Modifier.size(24.dp))
+                Icon(Icons.Default.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("NEXT", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("KEYINGISI", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
 
-            // SHARE
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.clickable { onShare() }
             ) {
-                Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White, modifier = Modifier.size(24.dp))
+                Icon(Icons.Default.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("SHARE", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("ULASHISH", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
 }
 
-// 2. Ref 3: PhotoCheck Gallery Screen & Dropdown Album Selector & Bottom Action Sheet
+// 2. Ref 3: PhotoCheck Gallery Grid displaying REAL DEVICE ALBUMS
 @Composable
 fun GalleryScreen(
     mediaList: List<MediaItem>,
+    realAlbums: List<String>,
     selectedFilter: String,
     showDropdownMenu: Boolean,
     onFilterSelect: (String) -> Unit,
@@ -654,7 +632,6 @@ fun GalleryScreen(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            // Ref 3 Top Header: PhotoCheck Title + RECENT ▼ Dropdown button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -675,7 +652,6 @@ fun GalleryScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Ref 3 Grid View (3 columns with 16.dp rounded corners)
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -701,39 +677,40 @@ fun GalleryScreen(
             }
         }
 
-        // Ref 3 Floating Glassmorphic Dropdown Menu (Camera, Screenshots, Telegram, Family, Downloads)
+        // Floating Glassmorphic Dropdown Menu listing REAL ALBUMS from user's phone!
         if (showDropdownMenu) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(top = 60.dp, end = 16.dp)
-                    .width(200.dp)
+                    .width(220.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .background(Color(0xFF1E2330).copy(alpha = 0.95f))
                     .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
                     .padding(8.dp)
             ) {
                 Column {
-                    val filters = listOf(
-                        "RECENT" to "📁",
-                        "Camera" to "📷",
-                        "Screenshots" to "📱",
-                        "Telegram" to "✈️",
-                        "Family" to "👥",
-                        "Downloads" to "📥"
-                    )
-                    filters.forEach { (name, icon) ->
+                    realAlbums.forEach { albumName ->
+                        val icon = when {
+                            albumName == "BARCHA FAYLLAR" -> "📁"
+                            albumName.contains("Camera", true) || albumName.contains("DCIM", true) -> "📷"
+                            albumName.contains("Screenshot", true) -> "📱"
+                            albumName.contains("Telegram", true) -> "✈️"
+                            albumName.contains("Download", true) -> "📥"
+                            albumName.contains("WhatsApp", true) -> "💬"
+                            else -> "🖼️"
+                        }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .clickable { onFilterSelect(name) }
+                                .clickable { onFilterSelect(albumName) }
                                 .padding(vertical = 10.dp, horizontal = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(icon, fontSize = 16.sp)
                             Spacer(modifier = Modifier.width(10.dp))
-                            Text(name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Text(albumName, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -860,7 +837,7 @@ fun CompressorScreen(
             if (isCompressing) {
                 CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(24.dp))
             } else {
-                Text("BARCHA MEDIA FAYLLARNI SIQISH (SIFATNI SAQLAGAN HOLDA)", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("BARCHA MEDIA FAYLLARNI SIQISH (SIFATNI SAQLAGAN HOLDA)", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -873,7 +850,6 @@ fun TahlilDashboardScreen(
     favoriteItems: List<MediaItem>,
     onEmptyTrash: () -> Unit
 ) {
-    val totalSizeGb = mediaList.sumOf { it.size } / (1024.0 * 1024.0 * 1024.0)
     val trashSizeGb = trashedItems.sumOf { it.size } / (1024.0 * 1024.0 * 1024.0)
     val imageCount = mediaList.count { it.mediaType == MediaType.IMAGE }
     val videoCount = mediaList.count { it.mediaType == MediaType.VIDEO }
@@ -939,7 +915,7 @@ fun TahlilDashboardScreen(
             }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("142.8 GB / 256 GB", color = Color.Gray, fontSize = 12.sp)
+                Text("Xotira Tahlili", color = Color.Gray, fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     String.format(Locale.US, "%.1f GB", if (trashSizeGb > 0) trashSizeGb else 14.2),
@@ -1003,7 +979,7 @@ fun TahlilDashboardScreen(
                 ) {
                     Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Sevimlilar", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("Saralanganlar", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     Text("${favoriteItems.size} fayl", color = Color.Gray, fontSize = 11.sp)
                     Text("1.1 GB", color = Color.Gray, fontSize = 11.sp)
                 }
