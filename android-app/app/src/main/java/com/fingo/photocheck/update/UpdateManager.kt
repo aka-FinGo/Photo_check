@@ -24,6 +24,8 @@ object UpdateManager {
     /**
      * GitHub Releases API orqali eng so'nggi yangilanishni tekshirish
      */
+    suspend fun checkForUpdate(context: Context): UpdateInfo? = checkForUpdates(context).getOrNull()
+
     suspend fun checkForUpdates(context: Context): Result<UpdateInfo> = withContext(Dispatchers.IO) {
         try {
             val currentVersion = try {
@@ -61,14 +63,41 @@ object UpdateManager {
 
             val assets = jsonObject.optJSONArray("assets")
             if (assets != null) {
+                var selectedAsset: JSONObject? = null
+                // Tier 1: Exact match for PhotoCheck.apk (Primary Universal build)
                 for (i in 0 until assets.length()) {
                     val asset = assets.getJSONObject(i)
                     val name = asset.optString("name", "")
-                    if (name.endsWith(".apk", ignoreCase = true)) {
-                        downloadUrl = asset.optString("browser_download_url", "")
-                        apkSize = asset.optLong("size", 0L)
+                    if (name.equals("PhotoCheck.apk", ignoreCase = true)) {
+                        selectedAsset = asset
                         break
                     }
+                }
+                // Tier 2: Versioned PhotoCheck APK or Universal APK
+                if (selectedAsset == null) {
+                    for (i in 0 until assets.length()) {
+                        val asset = assets.getJSONObject(i)
+                        val name = asset.optString("name", "")
+                        if ((name.startsWith("PhotoCheck", ignoreCase = true) || name.contains("universal", ignoreCase = true)) && name.endsWith(".apk", ignoreCase = true)) {
+                            selectedAsset = asset
+                            break
+                        }
+                    }
+                }
+                // Tier 3: Fallback to any valid APK asset
+                if (selectedAsset == null) {
+                    for (i in 0 until assets.length()) {
+                        val asset = assets.getJSONObject(i)
+                        val name = asset.optString("name", "")
+                        if (name.endsWith(".apk", ignoreCase = true)) {
+                            selectedAsset = asset
+                            break
+                        }
+                    }
+                }
+                if (selectedAsset != null) {
+                    downloadUrl = selectedAsset.optString("browser_download_url", "")
+                    apkSize = selectedAsset.optLong("size", 0L)
                 }
             }
 

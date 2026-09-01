@@ -20,21 +20,24 @@ android {
             val keystoreParam = (project.findProperty("KEYSTORE_FILE") as? String)
                 ?: System.getenv("KEYSTORE_FILE")
                 ?: "keystore/photocheck.jks"
-            val keystoreFile = file(keystoreParam).takeIf { it.exists() }
-                ?: file("../$keystoreParam").takeIf { it.exists() }
-                ?: rootProject.file("app/$keystoreParam").takeIf { it.exists() }
+            val keystoreFile = sequenceOf(
+                file(keystoreParam),
+                rootProject.file("app/$keystoreParam"),
+                rootProject.file(keystoreParam),
+                file("../$keystoreParam"),
+                file("keystore/photocheck.jks"),
+                rootProject.file("app/keystore/photocheck.jks")
+            ).firstOrNull { it.exists() } ?: file("keystore/photocheck.jks")
 
-            if (keystoreFile != null && keystoreFile.exists()) {
-                storeFile = keystoreFile
-                storePassword = (project.findProperty("KEYSTORE_PASSWORD") as? String)
-                    ?: System.getenv("KEYSTORE_PASSWORD") ?: "photocheck123"
-                keyAlias = (project.findProperty("KEY_ALIAS") as? String)
-                    ?: System.getenv("KEY_ALIAS") ?: "photocheck"
-                keyPassword = (project.findProperty("KEY_PASSWORD") as? String)
-                    ?: System.getenv("KEY_PASSWORD") ?: "photocheck123"
-                enableV1Signing = true
-                enableV2Signing = true
-            }
+            storeFile = keystoreFile
+            storePassword = (project.findProperty("KEYSTORE_PASSWORD") as? String)
+                ?: System.getenv("KEYSTORE_PASSWORD") ?: "photocheck123"
+            keyAlias = (project.findProperty("KEY_ALIAS") as? String)
+                ?: System.getenv("KEY_ALIAS") ?: "photocheck"
+            keyPassword = (project.findProperty("KEY_PASSWORD") as? String)
+                ?: System.getenv("KEY_PASSWORD") ?: "photocheck123"
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 

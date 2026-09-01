@@ -24,6 +24,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle'
 
       - name: Dinamik Versiya Raqamini Belgilash (+1.0.XX)
         id: versioning
@@ -63,7 +64,7 @@ jobs:
       - name: Release APK-ni yig'ish (Assemble Release)
         run: |
           cd android-app
-          export GRADLE_USER_HOME="$GITHUB_WORKSPACE/.gradle_home"
+          rm -f local.properties
           chmod +x gradlew
           ./gradlew assembleRelease \
             -PversionCode="${{ env.VERSION_CODE }}" \
@@ -81,9 +82,9 @@ jobs:
           find android-app/app/build/outputs/apk -type f -name "*.apk" -ls
           
           # Universal APK ni qidirish
-          UNIVERSAL_APK=$(find android-app/app/build/outputs/apk -name "*universal*.apk" | head -n 1)
+          UNIVERSAL_APK=$(find android-app/app/build/outputs/apk -type f -name "*universal*.apk" ! -name "*unsigned*" | head -n 1)
           if [ -z "$UNIVERSAL_APK" ]; then
-            UNIVERSAL_APK=$(find android-app/app/build/outputs/apk -name "*.apk" | head -n 1)
+            UNIVERSAL_APK=$(find android-app/app/build/outputs/apk -type f -name "*.apk" ! -name "*unsigned*" | head -n 1)
           fi
           
           if [ -n "$UNIVERSAL_APK" ]; then
@@ -96,7 +97,7 @@ jobs:
           fi
           
           # Barcha split APK fayllarni dist ga nusxalash
-          for apk in $(find android-app/app/build/outputs/apk -name "*.apk"); do
+          for apk in $(find android-app/app/build/outputs/apk -type f -name "*.apk" ! -name "*unsigned*" ! -name "*unaligned*"); do
             fname=$(basename "$apk")
             cp "$apk" "dist/$fname"
           done
@@ -108,8 +109,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: PhotoCheck-v${{ env.VERSION_NAME }}-APK
-          path: dist/*
+          path: dist
           retention-days: 14
+          if-no-files-found: error
 
       - name: 🚀 GitHub Release va In-App Update uchun nashr qilish
         uses: softprops/action-gh-release@v2
@@ -131,10 +133,11 @@ jobs:
             ---
             *Avtomatik tarzda GitHub Actions CI/CD orqali yig'ilgan va imzolangan.*
           files: |
-            dist/PhotoCheck.apk
-            dist/PhotoCheck-v${{ env.VERSION_NAME }}.apk
+            dist/*.apk
           draft: false
           prerelease: false
+          make_latest: true
           fail_on_unmatched_files: false
+          token: ${{ secrets.GITHUB_TOKEN }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
