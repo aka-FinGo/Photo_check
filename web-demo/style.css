@@ -681,7 +681,53 @@ body {
 .setting-card h3 { font-size: 14px; font-weight: 800; color: #fff; }
 .setting-card p { font-size: 11px; color: #94a3b8; }
 
-.bulk-album-actions { display: flex; gap: 8px; }
+.setting-header-block {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-bottom: 10px;
+}
+
+.bulk-album-actions-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.btn-bulk-action {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-bulk-select {
+    background: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+}
+
+.btn-bulk-select:hover {
+    background: #0369a1;
+}
+
+.btn-bulk-clear {
+    background: #7f1d1d;
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.btn-bulk-clear:hover {
+    background: #991b1b;
+}
 
 .btn-icon-chip {
     background: rgba(56, 189, 248, 0.12);
