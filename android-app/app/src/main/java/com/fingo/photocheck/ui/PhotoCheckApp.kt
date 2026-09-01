@@ -60,6 +60,9 @@ sealed interface SlideboxAction {
 @Composable
 fun PhotoCheckApp(
     mediaList: List<MediaItem>,
+    isScreenPinned: Boolean = false,
+    onToggleScreenPinning: (Boolean) -> Unit = {},
+    onSetImmersiveMode: (Boolean) -> Unit = {},
     onDeleteMediaItems: (List<MediaItem>) -> Unit,
     onRequestBiometricAuth: (title: String, onSuccess: () -> Unit) -> Unit = { _, success -> success() }
 ) {
@@ -75,6 +78,15 @@ fun PhotoCheckApp(
 
     var showParentSettings by remember { mutableStateOf(false) }
     var isClassicModeActive by remember { mutableStateOf(!kidsPrefs.isKidsMode) }
+
+    // Control Immersive Sticky Fullscreen in Kids Mode
+    LaunchedEffect(isKidsMode, isClassicModeActive, showParentSettings) {
+        if (isKidsMode && !isClassicModeActive && !showParentSettings) {
+            onSetImmersiveMode(true)
+        } else {
+            onSetImmersiveMode(false)
+        }
+    }
 
     // In-App Update State
     var availableUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
@@ -161,6 +173,9 @@ fun PhotoCheckApp(
             isKidsMode = isKidsMode,
             whitelistedAlbums = whitelistedAlbums,
             timerLimitMinutes = timerLimitMinutes,
+            isScreenPinned = isScreenPinned,
+            onToggleScreenPinning = onToggleScreenPinning,
+            onRequestBiometricAuth = onRequestBiometricAuth,
             onToggleKidsMode = { enabled ->
                 isKidsMode = enabled
                 kidsPrefs.isKidsMode = enabled

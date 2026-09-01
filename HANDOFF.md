@@ -32,7 +32,12 @@ Qo'shimcha rasmiy ro'yxat: [`FEATURES_REGISTRY.md`](file:///e:/Loyihalarim/GitHu
    - **Android (`PhotoCheckApp.kt`):** `offsetY < -50f` bo'lganda darhol `trash` ro'yxatiga qo'shiladi va Toast `"Savatga tashlandi 🗑️"` chiqadi. Pastda qo'shimcha Savat tugmasi bor.
    - **Web Demo (`web-demo/app.js`):** PointerEvents orqali surish xatosiz ishlaydi.
 
-5. 📦 **APK Hajmi va Build Optimallashuvi:**
+5. 📌 **Screen Pinning / Kiosk Mode va Immersive Fullscreen:**
+   - **Android (`MainActivity.kt` & `ParentSettingsScreen.kt`):** `startLockTask()` orqali ilovani ekranga qadash (Home va Recents tugmalarini bloklash). Ota-ona sozlamalarida barmoq izi bilan "Qadashni Bekor Qilish 🔓" tugmasi.
+   - **Immersive Sticky Fullscreen (`setImmersiveMode`):** Bolalar rejimida tepa status panelini avtomatik yashirish, bola tortganda 2s ichida qayta yashirinadi.
+   - **Web Demo (`web-demo/app.js`):** Kiosk Mode simulyatori integratsiya qilindi.
+
+6. 📦 **APK Hajmi va Build Optimallashuvi:**
    - `build.gradle.kts` da R8 / Minification yoqildi, APK hajmi ~15 MB gacha tushirildi.
 
 ---

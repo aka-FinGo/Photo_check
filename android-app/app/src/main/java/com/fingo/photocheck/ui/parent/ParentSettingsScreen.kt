@@ -38,6 +38,9 @@ fun ParentSettingsScreen(
     isKidsMode: Boolean,
     whitelistedAlbums: Set<String>,
     timerLimitMinutes: Int,
+    isScreenPinned: Boolean = false,
+    onToggleScreenPinning: (Boolean) -> Unit = {},
+    onRequestBiometricAuth: (title: String, onSuccess: () -> Unit) -> Unit = { _, success -> success() },
     onToggleKidsMode: (Boolean) -> Unit,
     onToggleAlbum: (String) -> Unit,
     onSelectAllAlbums: () -> Unit,
@@ -337,6 +340,75 @@ fun ParentSettingsScreen(
                                     uncheckedTrackColor = Color(0xFF1E293B)
                                 )
                             )
+                        }
+                    }
+                }
+
+                // Section 2.5: Screen Pinning (Kiosk Mode)
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(22.dp),
+                        color = Color(0xFF0F172A),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isScreenPinned) Color(0xFF10B981).copy(alpha = 0.6f) else Color(0xFF334155)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(18.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Lock, contentDescription = null, tint = if (isScreenPinned) Color(0xFF10B981) else Color(0xFF38BDF8))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("📌 Ekran Qadash (Kiosk Rejimi)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                }
+                                if (isScreenPinned) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFF10B981).copy(alpha = 0.2f)
+                                    ) {
+                                        Text("Qadalgan", color = Color(0xFF10B981), fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                "Home va Ilovalar ro'yxati (Recents) tugmalarini qulflaydi. Bola ilovadan chiqib ketolmaydi.",
+                                color = Color(0xFF94A3B8),
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Button(
+                                onClick = {
+                                    if (isScreenPinned) {
+                                        onRequestBiometricAuth("Qadashni Bekor Qilish") {
+                                            onToggleScreenPinning(false)
+                                        }
+                                    } else {
+                                        onToggleScreenPinning(true)
+                                    }
+                                },
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isScreenPinned) Color(0xFF7F1D1D) else Color(0xFF0284C7)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    if (isScreenPinned) Icons.Default.LockOpen else Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    if (isScreenPinned) "Qadashni Bekor Qilish 🔓" else "Ilovani Ekranga Qadash 📌",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
                         }
                     }
                 }

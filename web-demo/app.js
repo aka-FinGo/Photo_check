@@ -219,6 +219,26 @@ class PhotoCheckApp {
             }, 1000);
         });
 
+        // Screen Pinning (Kiosk Mode) Simulator
+        let isKioskPinned = false;
+        document.getElementById('btn-toggle-kiosk')?.addEventListener('click', () => {
+            isKioskPinned = !isKioskPinned;
+            const badge = document.getElementById('kiosk-status-badge');
+            const text = document.getElementById('kiosk-btn-text');
+            const btn = document.getElementById('btn-toggle-kiosk');
+            if (isKioskPinned) {
+                if (badge) badge.style.display = 'inline-block';
+                if (text) text.textContent = 'Qadashni Bekor Qilish 🔓';
+                if (btn) btn.className = 'btn btn-danger';
+                this.showToast('Ilova ekranga qadandi (Kiosk Rejimi) 📌');
+            } else {
+                if (badge) badge.style.display = 'none';
+                if (text) text.textContent = 'Ilovani Ekranga Qadash 📌';
+                if (btn) btn.className = 'btn btn-outline';
+                this.showToast('Ekranni qadash bekor qilindi 🔓');
+            }
+        });
+
         // Bulk Album Selection (Select All / Deselect All)
         document.getElementById('btn-select-all-albums')?.addEventListener('click', () => {
             const allFolders = Array.from(new Set(state.media.map(m => m.folder)));

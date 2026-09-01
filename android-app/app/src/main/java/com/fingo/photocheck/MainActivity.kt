@@ -33,6 +33,7 @@ class MainActivity : FragmentActivity() {
     private lateinit var repository: MediaRepository
     private lateinit var kidsPrefs: KidsPreferencesManager
     private var mediaListState = mutableStateOf<List<MediaItem>>(emptyList())
+    private var isScreenPinnedState = mutableStateOf(false)
     private var mediaObserver: ContentObserver? = null
     private var shouldLockOnResume = false
 
@@ -48,6 +49,45 @@ class MainActivity : FragmentActivity() {
     ) { result ->
         if (result.resultCode == RESULT_OK) {
             loadMedia()
+        }
+    }
+
+    fun startScreenPinning() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                startLockTask()
+                isScreenPinnedState.value = true
+                Toast.makeText(this, "Ilova ekranga qadandi (Kiosk Rejimi) 📌", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Ekranni qadash imkoni bo'lmadi: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun stopScreenPinning() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                stopLockTask()
+                isScreenPinnedState.value = false
+                Toast.makeText(this, "Ekranni qadash bekor qilindi 🔓", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            // ignore
+        }
+    }
+
+    fun setImmersiveMode(enabled: Boolean) {
+        try {
+            val windowInsetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+            if (enabled) {
+                windowInsetsController.systemBarsBehavior =
+                    androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                windowInsetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            } else {
+                windowInsetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            }
+        } catch (e: Exception) {
+            // fallback
         }
     }
 
@@ -70,6 +110,17 @@ class MainActivity : FragmentActivity() {
                 ) {
                     PhotoCheckApp(
                         mediaList = mediaListState.value,
+                        isScreenPinned = isScreenPinnedState.value,
+                        onToggleScreenPinning = { shouldPin ->
+                            if (shouldPin) {
+                                startScreenPinning()
+                            } else {
+                                stopScreenPinning()
+                            }
+                        },
+                        onSetImmersiveMode = { enabled ->
+                            setImmersiveMode(enabled)
+                        },
                         onDeleteMediaItems = { itemsToDelete ->
                             deleteMediaItems(itemsToDelete)
                         },

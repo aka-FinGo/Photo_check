@@ -15,6 +15,8 @@ Ushbu hujjat loyihadagi har bir funksiya, rejim, imo-ishora (gesture) va tugmala
 | **Oq Ro'yxat (Whitelisted Albums)** | Faqat ota-ona ruxsat bergan albomlar ko'rinadi. Begona albomlar, savatcha va boshqalar bloklangan. | `KidsPreferencesManager` |
 | **Ekran Vaqti Taymeri** | 15, 30, 45, 60 daqiqa. Vaqt tugagach "Uxlash vaqti 🌙" animatsion qulf ekrani chiqadi. | `KidsPreferencesManager` |
 | **Biometrik Qulflash** | Chiqish (Back press), Sozlamalarga kirish va taymerni ochishda barmoq izi, yuz yoki PIN kodi so'raladi. | `BiometricAuthManager` |
+| **Immersive Sticky Fullscreen** | Tepa bildirishnomalar paneli (status bar) yashiriladi. Bola tepadan tortsa ham panel avto-yashirinadi. | `MainActivity.kt` (`setImmersiveMode`) |
+| **Ekran Qadash (Kiosk Rejimi)** | `startLockTask()` orqali ilovani ekranga qadash. Home va Ilovalar ro'yxati tugmalari qulflanadi. | `MainActivity.kt` (`startLockTask`) |
 
 ---
 
@@ -37,6 +39,7 @@ Ushbu hujjat loyihadagi har bir funksiya, rejim, imo-ishora (gesture) va tugmala
 |---|---|---|
 | **Gamburger Menyusi (Drawer)** | Asosiy sozlamalar, Yo'riqnoma, Dastur yangilash, Dastur haqida va Donat dialoglari. | `ParentSettingsScreen.kt` |
 | **Bento Analytics Vidjeti** | Ruxsat etilgan albomlar soni, jami fayllar soni va taymer statusini ko'rsatuvchi karta. | `ParentSettingsScreen.kt` |
+| **📌 Ekran Qadash Boshqaruvi** | Ota-ona sozlamalarida "Ilovani Ekranga Qadash 📌" va barmoq izi bilan "Qadashni Bekor Qilish 🔓" tugmalari. | `ParentSettingsScreen.kt` |
 | **`[✓✓ Barchasini Tanlash]`** | Katta to'liq enli ko'k tugma — barcha albomlarni bitta bosishda ruxsat etilganlar ro'yxatiga oladi. | `ParentSettingsScreen.kt` |
 | **`[⨂ Bekor Qilish]`** | Katta to'liq enli qizil tugma — barcha belgilangan albomlarni bitta bosishda tozalaydi. | `ParentSettingsScreen.kt` |
 | **In-App Updater** | GitHub Releases orqali yangi versiyani tekshirish, yuklab olish va o'rnatish. | `UpdateManager.kt` |
