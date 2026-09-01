@@ -41,6 +41,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 
+import com.fingo.photocheck.data.KidsPreferencesManager
+import com.fingo.photocheck.ui.kids.KidsSafeGalleryScreen
+import com.fingo.photocheck.ui.parent.ParentSettingsScreen
+
 enum class UzbekCategory(val displayName: String, val color: Color) {
     TATIL("TA'TIL", Color(0xFFA0E0FF)),
     TABIAT("TABIAT", Color(0xFFB8F0D0)),
@@ -52,10 +56,36 @@ enum class UzbekCategory(val displayName: String, val color: Color) {
 @Composable
 fun PhotoCheckApp(
     mediaList: List<MediaItem>,
-    onDeleteMediaItems: (List<MediaItem>) -> Unit
+    onDeleteMediaItems: (List<MediaItem>) -> Unit,
+    onRequestBiometricAuth: (title: String, onSuccess: () -> Unit) -> Unit = { _, success -> success() }
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val kidsPrefs = remember { KidsPreferencesManager(context) }
+
+    var isKidsMode by remember { mutableStateOf(kidsPrefs.isKidsMode) }
+    var whitelistedAlbums by remember { mutableStateOf(kidsPrefs.whitelistedAlbums) }
+    var timerLimitMinutes by remember { mutableIntStateOf(kidsPrefs.timerLimitMinutes) }
+    var remainingSeconds by remember { mutableLongStateOf(timerLimitMinutes * 60L) }
+    var isTimerExpired by remember { mutableStateOf(false) }
+
+    var showParentSettings by remember { mutableStateOf(false) }
+    var isClassicModeActive by remember { mutableStateOf(!kidsPrefs.isKidsMode) }
+
+    // Live timer countdown
+    LaunchedEffect(isKidsMode, isClassicModeActive, timerLimitMinutes) {
+        if (isKidsMode && !isClassicModeActive && timerLimitMinutes > 0) {
+            remainingSeconds = timerLimitMinutes * 60L
+            isTimerExpired = false
+            while (remainingSeconds > 0) {
+                delay(1000L)
+                remainingSeconds--
+            }
+            isTimerExpired = true
+        } else {
+            isTimerExpired = false
+        }
+    }
 
     var activeTab by remember { mutableIntStateOf(0) }
     val favorites = remember { mutableStateListOf<Long>() }
@@ -99,249 +129,358 @@ fun PhotoCheckApp(
         activeList[safeIndex]
     } else null
 
-    Scaffold(
-        containerColor = Color(0xFF090A0F),
-        bottomBar = {
-            NavigationBar(
-                containerColor = Color(0xFF10121A).copy(alpha = 0.95f),
-                contentColor = Color.White
-            ) {
-                NavigationBarItem(
-                    selected = activeTab == 0,
-                    onClick = { activeTab = 0 },
-                    icon = { Icon(Icons.Default.Home, contentDescription = "Asosiy") },
-                    label = { Text("Asosiy", fontSize = 10.sp) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF38BDF8),
-                        indicatorColor = Color(0xFF1E293B)
-                    )
-                )
-                NavigationBarItem(
-                    selected = activeTab == 1,
-                    onClick = { activeTab = 1 },
-                    icon = { Icon(Icons.Default.List, contentDescription = "Galereya") },
-                    label = { Text("Galereya", fontSize = 10.sp) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF38BDF8),
-                        indicatorColor = Color(0xFF1E293B)
-                    )
-                )
-                NavigationBarItem(
-                    selected = activeTab == 2,
-                    onClick = { activeTab = 2 },
-                    icon = { Icon(Icons.Default.Refresh, contentDescription = "Dublikatlar") },
-                    label = { Text("Dublikatlar", fontSize = 10.sp) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF38BDF8),
-                        indicatorColor = Color(0xFF1E293B)
-                    )
-                )
-                NavigationBarItem(
-                    selected = activeTab == 3,
-                    onClick = { activeTab = 3 },
-                    icon = { Icon(Icons.Default.Build, contentDescription = "Siqish") },
-                    label = { Text("Siqish", fontSize = 10.sp) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF38BDF8),
-                        indicatorColor = Color(0xFF1E293B)
-                    )
-                )
-                NavigationBarItem(
-                    selected = activeTab == 4,
-                    onClick = { activeTab = 4 },
-                    icon = { Icon(Icons.Default.PlayArrow, contentDescription = "Tahlil") },
-                    label = { Text("Tahlil", fontSize = 10.sp) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Color(0xFF38BDF8),
-                        indicatorColor = Color(0xFF1E293B)
-                    )
-                )
+    if (showParentSettings) {
+        ParentSettingsScreen(
+            mediaList = mediaList,
+            isKidsMode = isKidsMode,
+            whitelistedAlbums = whitelistedAlbums,
+            timerLimitMinutes = timerLimitMinutes,
+            onToggleKidsMode = { enabled ->
+                isKidsMode = enabled
+                kidsPrefs.isKidsMode = enabled
+                if (enabled) isClassicModeActive = false
+            },
+            onToggleAlbum = { albumName ->
+                kidsPrefs.toggleAlbum(albumName)
+                whitelistedAlbums = kidsPrefs.whitelistedAlbums
+            },
+            onSelectAllAlbums = {
+                val all = mediaList.map { it.bucketName }.distinct()
+                kidsPrefs.setAllAlbums(all)
+                whitelistedAlbums = kidsPrefs.whitelistedAlbums
+            },
+            onClearAllAlbums = {
+                kidsPrefs.clearAllAlbums()
+                whitelistedAlbums = emptySet()
+            },
+            onSetTimerLimit = { minutes ->
+                timerLimitMinutes = minutes
+                kidsPrefs.timerLimitMinutes = minutes
+                remainingSeconds = minutes * 60L
+                isTimerExpired = false
+            },
+            onResetTimer = {
+                remainingSeconds = timerLimitMinutes * 60L
+                isTimerExpired = false
+            },
+            onOpenClassicMode = {
+                isClassicModeActive = true
+                showParentSettings = false
+            },
+            onClose = {
+                showParentSettings = false
             }
-        }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(Color(0xFF090A0F))
-        ) {
-            when (activeTab) {
-                0 -> {
-                    // Ref 1: Fullscreen Media Viewer
-                    if (currentItem != null) {
-                        SlideboxViewerScreen(
-                            item = currentItem,
-                            totalCount = activeList.size,
-                            currentIndex = currentIndex,
-                            trashedCount = trashedItems.size,
+        )
+    } else if (isKidsMode && !isClassicModeActive) {
+        // 👶 KIDS SAFE GALLERY SCREEN
+        KidsSafeGalleryScreen(
+            mediaList = mediaList,
+            whitelistedAlbums = whitelistedAlbums,
+            remainingSeconds = remainingSeconds,
+            isTimerExpired = isTimerExpired,
+            onOpenParentSettings = {
+                onRequestBiometricAuth("Ota-ona Sozlamalari") {
+                    showParentSettings = true
+                }
+            },
+            onUnlockTimerRequest = {
+                onRequestBiometricAuth("Taymerni Ochish") {
+                    remainingSeconds = timerLimitMinutes * 60L
+                    isTimerExpired = false
+                }
+            }
+        )
+    } else {
+        // 🛡️ CLASSIC PHOTOCHECK PRO DASHBOARD
+        Scaffold(
+            containerColor = Color(0xFF090A0F),
+            topBar = {
+                // Top floating banner to lock back to Kids mode
+                Surface(
+                    color = Color(0xFF1E1B4B),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("🛡️", fontSize = 16.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "PhotoCheck Pro (Admin)",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = {
+                                    isKidsMode = true
+                                    kidsPrefs.isKidsMode = true
+                                    isClassicModeActive = false
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
+                                shape = RoundedCornerShape(14.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text("Bolalar Rejimi 👶", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            IconButton(
+                                onClick = { showParentSettings = true },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.Settings, contentDescription = "Sozlamalar", tint = Color.White)
+                            }
+                        }
+                    }
+                }
+            },
+            bottomBar = {
+                NavigationBar(
+                    containerColor = Color(0xFF10121A).copy(alpha = 0.95f),
+                    contentColor = Color.White
+                ) {
+                    NavigationBarItem(
+                        selected = activeTab == 0,
+                        onClick = { activeTab = 0 },
+                        icon = { Icon(Icons.Default.Home, contentDescription = "Asosiy") },
+                        label = { Text("Asosiy", fontSize = 10.sp) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = Color(0xFF38BDF8),
+                            indicatorColor = Color(0xFF1E293B)
+                        )
+                    )
+                    NavigationBarItem(
+                        selected = activeTab == 1,
+                        onClick = { activeTab = 1 },
+                        icon = { Icon(Icons.Default.List, contentDescription = "Galereya") },
+                        label = { Text("Galereya", fontSize = 10.sp) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = Color(0xFF38BDF8),
+                            indicatorColor = Color(0xFF1E293B)
+                        )
+                    )
+                    NavigationBarItem(
+                        selected = activeTab == 2,
+                        onClick = { activeTab = 2 },
+                        icon = { Icon(Icons.Default.Refresh, contentDescription = "Dublikatlar") },
+                        label = { Text("Dublikatlar", fontSize = 10.sp) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = Color(0xFF38BDF8),
+                            indicatorColor = Color(0xFF1E293B)
+                        )
+                    )
+                    NavigationBarItem(
+                        selected = activeTab == 3,
+                        onClick = { activeTab = 3 },
+                        icon = { Icon(Icons.Default.Build, contentDescription = "Siqish") },
+                        label = { Text("Siqish", fontSize = 10.sp) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = Color(0xFF38BDF8),
+                            indicatorColor = Color(0xFF1E293B)
+                        )
+                    )
+                    NavigationBarItem(
+                        selected = activeTab == 4,
+                        onClick = { activeTab = 4 },
+                        icon = { Icon(Icons.Default.PlayArrow, contentDescription = "Tahlil") },
+                        label = { Text("Tahlil", fontSize = 10.sp) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = Color(0xFF38BDF8),
+                            indicatorColor = Color(0xFF1E293B)
+                        )
+                    )
+                }
+            }
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .background(Color(0xFF090A0F))
+            ) {
+                when (activeTab) {
+                    0 -> {
+                        // Ref 1: Fullscreen Media Viewer
+                        if (currentItem != null) {
+                            SlideboxViewerScreen(
+                                item = currentItem,
+                                totalCount = activeList.size,
+                                currentIndex = currentIndex,
+                                trashedCount = trashedItems.size,
+                                selectedFilter = selectedFilter,
+                                onFilterClick = { showDropdownMenu = true },
+                                onTrash = {
+                                    trash.add(currentItem.id)
+                                },
+                                onUndo = {
+                                    if (trash.isNotEmpty()) {
+                                        trash.removeAt(trash.size - 1)
+                                    }
+                                },
+                                onNext = {
+                                    if (currentIndex < activeList.size - 1) {
+                                        currentIndex++
+                                    }
+                                },
+                                onPrevious = {
+                                    if (currentIndex > 0) {
+                                        currentIndex--
+                                    }
+                                },
+                                onShare = {
+                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = if (currentItem.mediaType == MediaType.VIDEO) "video/*" else "image/*"
+                                        putExtra(Intent.EXTRA_STREAM, currentItem.uri)
+                                    }
+                                    context.startActivity(Intent.createChooser(shareIntent, "Ulashish"))
+                                }
+                            )
+                        } else {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(64.dp))
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text("Barcha fayllar saralandi!", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                    1 -> {
+                        // Ref 3: PhotoCheck Gallery Grid with Real Device Albums
+                        GalleryScreen(
+                            mediaList = activeList,
+                            realAlbums = realAlbums,
                             selectedFilter = selectedFilter,
-                            onFilterClick = { showDropdownMenu = true },
-                            onTrash = {
-                                trash.add(currentItem.id)
+                            showDropdownMenu = showDropdownMenu,
+                            onFilterSelect = { filter ->
+                                selectedFilter = filter
+                                showDropdownMenu = false
                             },
-                            onUndo = {
-                                if (trash.isNotEmpty()) {
-                                    trash.removeAt(trash.size - 1)
-                                }
+                            onToggleDropdown = { showDropdownMenu = !showDropdownMenu },
+                            onItemClick = { item ->
+                                currentIndex = activeList.indexOf(item)
+                                activeTab = 0
                             },
-                            onNext = {
-                                if (currentIndex < activeList.size - 1) {
-                                    currentIndex++
-                                }
-                            },
-                            onPrevious = {
-                                if (currentIndex > 0) {
-                                    currentIndex--
-                                }
-                            },
-                            onShare = {
-                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = if (currentItem.mediaType == MediaType.VIDEO) "video/*" else "image/*"
-                                    putExtra(Intent.EXTRA_STREAM, currentItem.uri)
-                                }
-                                context.startActivity(Intent.createChooser(shareIntent, "Ulashish"))
+                            onOpenActionSheet = { showAlbumBottomSheet = true }
+                        )
+                    }
+                    2 -> {
+                        // Dublikatlar Screen (czkawka engine)
+                        val duplicateGroups = remember(mediaList) {
+                            mediaList.groupBy { "${it.size / 1024}_${it.displayName.take(5)}" }
+                                .filter { it.value.size > 1 }
+                                .values.toList()
+                        }
+                        DuplicatesScreen(
+                            duplicateGroups = duplicateGroups,
+                            onDeleteDuplicates = { items ->
+                                items.forEach { trash.add(it.id) }
                             }
                         )
-                    } else {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(64.dp))
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text("Barcha fayllar saralandi!", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
                     }
-                }
-                1 -> {
-                    // Ref 3: PhotoCheck Gallery Grid with Real Device Albums
-                    GalleryScreen(
-                        mediaList = activeList,
-                        realAlbums = realAlbums,
-                        selectedFilter = selectedFilter,
-                        showDropdownMenu = showDropdownMenu,
-                        onFilterSelect = { filter ->
-                            selectedFilter = filter
-                            showDropdownMenu = false
-                        },
-                        onToggleDropdown = { showDropdownMenu = !showDropdownMenu },
-                        onItemClick = { item ->
-                            currentIndex = activeList.indexOf(item)
-                            activeTab = 0
-                        },
-                        onOpenActionSheet = { showAlbumBottomSheet = true }
-                    )
-                }
-                2 -> {
-                    // Dublikatlar Screen (czkawka engine)
-                    val duplicateGroups = remember(mediaList) {
-                        mediaList.groupBy { "${it.size / 1024}_${it.displayName.take(5)}" }
-                            .filter { it.value.size > 1 }
-                            .values.toList()
-                    }
-                    DuplicatesScreen(
-                        duplicateGroups = duplicateGroups,
-                        onDeleteDuplicates = { items ->
-                            items.forEach { trash.add(it.id) }
-                        }
-                    )
-                }
-                3 -> {
-                    // Media Compressor Screen (open_squeezer engine)
-                    CompressorScreen(
-                        mediaList = activeList,
-                        isCompressing = isCompressing,
-                        onCompressAll = {
-                            scope.launch {
-                                isCompressing = true
-                                delay(1500)
-                                isCompressing = false
-                            }
-                        }
-                    )
-                }
-                4 -> {
-                    // Tahlil Dashboard
-                    TahlilDashboardScreen(
-                        mediaList = mediaList,
-                        trashedItems = trashedItems,
-                        favoriteItems = favoriteItems,
-                        onEmptyTrash = {
-                            onDeleteMediaItems(trashedItems)
-                        }
-                    )
-                }
-            }
-
-            // Ref 3: Uzbek Bottom Album Action Sheet
-            if (showAlbumBottomSheet) {
-                ModalBottomSheet(
-                    onDismissRequest = { showAlbumBottomSheet = false },
-                    containerColor = Color(0xFF141722)
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text("ALBOM AMALLARI", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            // Yangi albom yaratish
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1B4332)),
-                                shape = RoundedCornerShape(18.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(110.dp)
-                                    .clickable { showAlbumBottomSheet = false }
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .padding(12.dp)
-                                        .fillMaxSize(),
-                                    verticalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF2EC4B6), modifier = Modifier.size(28.dp))
-                                    Text("Yangi albom yaratish", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    3 -> {
+                        // Media Compressor Screen (open_squeezer engine)
+                        CompressorScreen(
+                            mediaList = activeList,
+                            isCompressing = isCompressing,
+                            onCompressAll = {
+                                scope.launch {
+                                    isCompressing = true
+                                    delay(1500)
+                                    isCompressing = false
                                 }
                             }
-
-                            // Saralanganlarga qo'shish
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1D3557)),
-                                shape = RoundedCornerShape(18.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(110.dp)
-                                    .clickable { showAlbumBottomSheet = false }
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .padding(12.dp)
-                                        .fillMaxSize(),
-                                    verticalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFF48CAE4), modifier = Modifier.size(28.dp))
-                                    Text("Saralanganlar", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
+                        )
+                    }
+                    4 -> {
+                        // Tahlil Dashboard
+                        TahlilDashboardScreen(
+                            mediaList = mediaList,
+                            trashedItems = trashedItems,
+                            favoriteItems = favoriteItems,
+                            onEmptyTrash = {
+                                onDeleteMediaItems(trashedItems)
                             }
+                        )
+                    }
+                }
 
-                            // Ta'til 2024
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF4A154B)),
-                                shape = RoundedCornerShape(18.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(110.dp)
-                                    .clickable { showAlbumBottomSheet = false }
+                // Ref 3: Uzbek Bottom Album Action Sheet
+                if (showAlbumBottomSheet) {
+                    ModalBottomSheet(
+                        onDismissRequest = { showAlbumBottomSheet = false },
+                        containerColor = Color(0xFF141722)
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Text("ALBOM AMALLARI", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Column(
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1B4332)),
+                                    shape = RoundedCornerShape(18.dp),
                                     modifier = Modifier
-                                        .padding(12.dp)
-                                        .fillMaxSize(),
-                                    verticalArrangement = Arrangement.SpaceBetween
+                                        .weight(1f)
+                                        .height(110.dp)
+                                        .clickable { showAlbumBottomSheet = false }
                                 ) {
-                                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFE0AAFF), modifier = Modifier.size(28.dp))
-                                    Text("Ta'til 2024", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Column(
+                                        modifier = Modifier
+                                            .padding(12.dp)
+                                            .fillMaxSize(),
+                                        verticalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF2EC4B6), modifier = Modifier.size(28.dp))
+                                        Text("Yangi albom yaratish", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1D3557)),
+                                    shape = RoundedCornerShape(18.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(110.dp)
+                                        .clickable { showAlbumBottomSheet = false }
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .padding(12.dp)
+                                            .fillMaxSize(),
+                                        verticalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFF48CAE4), modifier = Modifier.size(28.dp))
+                                        Text("Saralanganlar", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF4A154B)),
+                                    shape = RoundedCornerShape(18.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(110.dp)
+                                        .clickable { showAlbumBottomSheet = false }
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .padding(12.dp)
+                                            .fillMaxSize(),
+                                        verticalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFE0AAFF), modifier = Modifier.size(28.dp))
+                                        Text("Ta'til 2024", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }

@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     
     // Media & Coil
+    implementation(libs.androidx.biometric)
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
     implementation(libs.media3.exoplayer)

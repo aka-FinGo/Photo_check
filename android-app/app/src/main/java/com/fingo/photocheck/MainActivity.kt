@@ -8,7 +8,8 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
-import androidx.activity.ComponentActivity
+import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,23 +18,26 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
+import com.fingo.photocheck.auth.BiometricAuthManager
+import com.fingo.photocheck.data.KidsPreferencesManager
 import com.fingo.photocheck.model.MediaItem
 import com.fingo.photocheck.repository.MediaRepository
 import com.fingo.photocheck.ui.PhotoCheckApp
 import com.fingo.photocheck.ui.theme.PhotoCheckTheme
 import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     private lateinit var repository: MediaRepository
+    private lateinit var kidsPrefs: KidsPreferencesManager
     private var mediaListState = mutableStateOf<List<MediaItem>>(emptyList())
     private var mediaObserver: ContentObserver? = null
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        // Load media regardless of individual permission granularity
+    ) { _ ->
         loadMedia()
         registerMediaObserver()
     }
@@ -49,7 +53,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         repository = MediaRepository(applicationContext)
+        kidsPrefs = KidsPreferencesManager(applicationContext)
 
+        // Setup Exit Protection (Kids Lock)
+        setupBackPressedProtection()
+
+        // Request storage permissions and observe gallery
         requestStoragePermissions()
 
         setContent {
@@ -62,11 +71,56 @@ class MainActivity : ComponentActivity() {
                         mediaList = mediaListState.value,
                         onDeleteMediaItems = { itemsToDelete ->
                             deleteMediaItems(itemsToDelete)
+                        },
+                        onRequestBiometricAuth = { title, onSuccess ->
+                            BiometricAuthManager.authenticate(
+                                activity = this@MainActivity,
+                                title = title,
+                                subtitle = "Barmoq izi, yuz yoki tizim paroli bilan tasdiqlang",
+                                onSuccess = onSuccess,
+                                onFailed = {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "Tasdiqlanmadi",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            )
                         }
                     )
                 }
             }
         }
+    }
+
+    private fun setupBackPressedProtection() {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (kidsPrefs.isKidsMode) {
+                    // Kids Mode: require parent authentication before exiting app
+                    BiometricAuthManager.authenticate(
+                        activity = this@MainActivity,
+                        title = "Ilovadan Chiqish",
+                        subtitle = "Chiqish uchun ota-ona barmoq izi yoki tizim parolini tasdiqlang",
+                        onSuccess = {
+                            isEnabled = false
+                            finish()
+                        },
+                        onFailed = {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Ilovadan chiqish uchun ota-ona tasdig'i shart!",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+                } else {
+                    // Pro / Classic Mode: normal exit
+                    isEnabled = false
+                    finish()
+                }
+            }
+        })
     }
 
     override fun onResume() {
@@ -105,6 +159,7 @@ class MainActivity : ComponentActivity() {
             mediaObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
                 override fun onChange(selfChange: Boolean, uri: Uri?) {
                     super.onChange(selfChange, uri)
+                    // Real-time live gallery sync with MIUI / Android System Gallery!
                     loadMedia()
                 }
             }

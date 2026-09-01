@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhotoCheck - Media Sorter App</title>
+    <title>PhotoCheck Kids - Xavfsiz Bolalar Galereyasi</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,7 +20,7 @@
     <div class="bg-glow bg-glow-2"></div>
 
     <div class="app-container">
-        <!-- Mock Device Frame Wrapper (for desktop view) -->
+        <!-- Mock Device Frame Wrapper -->
         <div class="device-frame">
             
             <!-- Phone Status Bar -->
@@ -33,29 +33,68 @@
                 </div>
             </div>
 
-            <!-- App Header -->
-            <header class="app-header">
+            <!-- Kids Mode Top Header -->
+            <header class="kids-header" id="kids-header">
                 <div class="header-left">
-                    <span class="logo">Photo<span class="logo-accent">Check</span></span>
+                    <span class="kids-logo">🎈 Photo<span class="logo-accent">Check Kids</span></span>
                 </div>
                 <div class="header-right">
-                    <div class="stat-badge">
-                        <i class="fas fa-photo-film"></i>
-                        <span id="media-counter">5 / 5</span>
+                    <div class="timer-pill" id="kids-timer-pill" title="Ekran vaqti">
+                        <i class="fas fa-hourglass-half"></i>
+                        <span id="kids-timer-text">29:59</span>
                     </div>
+                    <button class="btn-parent-shield" id="btn-parent-shield" title="Ota-ona sozlamalari">
+                        <i class="fas fa-shield-halved"></i>
+                    </button>
                 </div>
             </header>
 
-            <!-- Folder Chips Bar -->
-            <div class="folder-bar" id="folder-bar">
-                <button class="chip active" data-folder="all">📁 Barchasi</button>
-                <button class="chip" data-folder="Camera">📷 Camera</button>
-                <button class="chip" data-folder="WhatsApp">💬 WhatsApp</button>
-                <button class="chip" data-folder="Screenshots">📸 Screenshots</button>
+            <!-- Classic App Header (Pro mode) -->
+            <header class="app-header hidden" id="pro-header">
+                <div class="header-left">
+                    <span class="logo">Photo<span class="logo-accent">Check Pro</span></span>
+                </div>
+                <div class="header-right">
+                    <button class="btn-kids-lock" id="btn-lock-to-kids">
+                        <i class="fas fa-lock"></i> Bolalar Rejimi
+                    </button>
+                    <button class="btn-icon-gear" id="btn-pro-settings">
+                        <i class="fas fa-gear"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Folder Chips Bar for Kids -->
+            <div class="folder-bar" id="kids-folder-bar">
+                <button class="chip active" data-folder="all">🌈 Barchasi</button>
+                <button class="chip" data-folder="Cartoons">🎬 Multfilmlar</button>
+                <button class="chip" data-folder="Animals">🐱 Hayvonlar</button>
+                <button class="chip" data-folder="Camera">📷 Kamera</button>
             </div>
 
-            <!-- Screen: Sorter (Main) -->
-            <div id="screen-sorter" class="app-screen active">
+            <!-- Screen: Kids Gallery (Active Default) -->
+            <div id="screen-kids-gallery" class="app-screen active">
+                <div class="kids-gallery-content">
+                    <div class="kids-grid" id="kids-grid">
+                        <!-- Dynamic Kids Cards -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Screen: Kids Sleep Locked Screen (when timer finishes) -->
+            <div id="screen-kids-sleep" class="app-screen hidden">
+                <div class="sleep-content">
+                    <div class="moon-icon">🌙</div>
+                    <h2>Uxlash va dam olish vaqti bo'ldi! ✨</h2>
+                    <p>Bugungi tomosha vaqti tugadi. Ko'zlaringizni dam oldiring! 🧸</p>
+                    <button class="btn btn-unlock-parent" id="btn-sleep-unlock">
+                        <i class="fas fa-fingerprint"></i> Ota-ona uchun ochish 🔑
+                    </button>
+                </div>
+            </div>
+
+            <!-- Screen: Sorter (Classic Pro) -->
+            <div id="screen-sorter" class="app-screen hidden">
                 <div class="gesture-zone" id="gesture-zone">
                     <div class="card-stack" id="card-stack">
                         <!-- Dynamic Cards -->
@@ -93,19 +132,16 @@
                             <i class="fas fa-check-circle"></i>
                         </div>
                         <h2>Hamma rasm va videolar saralandi!</h2>
-                        <p>Tanlangan papkadagi barcha fayllar ko'rib chiqildi.</p>
+                        <p>Barcha fayllar ko'rib chiqildi.</p>
                         <div class="empty-actions">
                             <button class="btn btn-primary" onclick="app.showScreen('trash')">
                                 <i class="fas fa-trash-alt"></i> Savatni ko'rish (<span class="trash-count">0</span>)
-                            </button>
-                            <button class="btn btn-outline" onclick="app.resetDemo()">
-                                <i class="fas fa-rotate-right"></i> Qayta boshlash
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Floating Controls -->
+                <!-- Floating Controls for Classic Mode -->
                 <div class="floating-controls">
                     <button class="btn-float btn-back" id="btn-swipe-left" title="Oldingisi">
                         <i class="fas fa-chevron-left"></i>
@@ -122,27 +158,23 @@
                 </div>
             </div>
 
-            <!-- Screen: Favorites -->
-            <div id="screen-favorites" class="app-screen">
+            <!-- Screen: Favorites (Pro) -->
+            <div id="screen-favorites" class="app-screen hidden">
                 <div class="screen-content">
                     <div class="screen-header">
                         <h2><i class="fas fa-heart"></i> Sevimlilar Ro'yxati</h2>
-                        <p class="subtitle">Tepaga surilgan va saqlab qolingan media fayllar</p>
+                        <p class="subtitle">Saqlab qolingan media fayllar</p>
                     </div>
                     <div class="media-grid" id="favorites-grid"></div>
-                    <div class="screen-empty" id="favorites-empty">
-                        <i class="far fa-heart"></i>
-                        <p>Hozircha sevimlilar yo'q. Rasm yoki videoni tepaga surib qo'shing!</p>
-                    </div>
                 </div>
             </div>
 
-            <!-- Screen: Trash (Delete later queue) -->
-            <div id="screen-trash" class="app-screen">
+            <!-- Screen: Trash (Pro) -->
+            <div id="screen-trash" class="app-screen hidden">
                 <div class="screen-content">
                     <div class="screen-header">
-                        <h2><i class="fas fa-trash-alt"></i> O'chirish Navbati</h2>
-                        <p class="subtitle">Pastga surilgan va qaytarish (restore) mumkin bo'lgan fayllar</p>
+                        <h2><i class="fas fa-trash-alt"></i> Tizim Savatchasi</h2>
+                        <p class="subtitle">O'chirish navbatidagi fayllar</p>
                     </div>
                     <div class="trash-summary-card">
                         <div class="summary-info">
@@ -150,61 +182,103 @@
                             <span class="size-badge" id="trash-size-info">0 MB joy bo'shaydi</span>
                         </div>
                         <button class="btn btn-danger btn-block" id="btn-empty-trash" disabled>
-                            <i class="fas fa-dumpster-fire"></i> Barchasini Butunlay O'chirish
+                            <i class="fas fa-trash-can"></i> Savatni Butunlay Tozalash
                         </button>
                     </div>
                     <div class="media-grid" id="trash-grid"></div>
-                    <div class="screen-empty" id="trash-empty">
-                        <i class="far fa-trash-can"></i>
-                        <p>O'chiriladigan fayllar ro'yxati bo'sh.</p>
-                    </div>
                 </div>
             </div>
 
-            <!-- Screen: Analytics (Hisobot) -->
-            <div id="screen-analytics" class="app-screen">
+            <!-- Screen: Analytics (Pro) -->
+            <div id="screen-analytics" class="app-screen hidden">
                 <div class="screen-content">
                     <div class="screen-header">
-                        <h2><i class="fas fa-chart-pie"></i> Statistika va Hisobot</h2>
-                        <p class="subtitle">Xotira balansi va o'chirish tahlili</p>
+                        <h2><i class="fas fa-chart-pie"></i> Xotira Tahlili</h2>
+                        <p class="subtitle">Real-vaqt xotira statistikasi</p>
                     </div>
 
                     <div class="stats-card">
                         <span class="stats-label">Egallangan Umumiy Xotira</span>
                         <div class="stats-value" id="stats-total-size">23.8 MB</div>
                         <div class="progress-bar-wrap">
-                            <div class="progress-bar-fill" id="stats-progress" style="width: 0%;"></div>
+                            <div class="progress-bar-fill" id="stats-progress" style="width: 25%;"></div>
                         </div>
                         <div class="stats-subtext" id="stats-trash-saving">O'chirish navbatidagi joy: 0 MB</div>
                     </div>
+                </div>
+            </div>
 
-                    <div class="stats-grid">
-                        <div class="stat-mini-card">
-                            <i class="fas fa-photo-film stat-icon"></i>
-                            <div class="num" id="stat-total-count">5</div>
-                            <div class="lbl">Jami Fayllar</div>
+            <!-- Screen: Parent Settings Dashboard -->
+            <div id="screen-parent-settings" class="app-screen hidden">
+                <div class="parent-settings-content">
+                    <div class="parent-header">
+                        <button class="btn-back-parent" id="btn-close-parent-settings">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <h2>🛡️ Ota-ona Sozlamalari</h2>
+                    </div>
+
+                    <div class="setting-card">
+                        <div class="setting-row">
+                            <div>
+                                <h3>👶 Bolalar Rejimi</h3>
+                                <p>O'chirish va ulashish to'liq taqiqlanadi.</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="toggle-kids-mode" checked>
+                                <span class="slider"></span>
+                            </label>
                         </div>
-                        <div class="stat-mini-card">
-                            <i class="fas fa-heart stat-icon fav"></i>
-                            <div class="num" id="stat-fav-count">0</div>
-                            <div class="lbl">Sevimlilar</div>
+                    </div>
+
+                    <div class="setting-card">
+                        <h3>🚀 PhotoCheck Pro (Klassik)</h3>
+                        <p>Slidebox saralash, Dublikatlar va Siqish dashboardi.</p>
+                        <button class="btn btn-pro-launch" id="btn-launch-pro">
+                            Pro Rejimiga O'tish
+                        </button>
+                    </div>
+
+                    <div class="setting-card">
+                        <div class="setting-row">
+                            <h3>⏳ Ekran Vaqti Taymeri</h3>
+                            <button class="btn-link" id="btn-reset-timer">Qayta Boshlash</button>
                         </div>
-                        <div class="stat-mini-card">
-                            <i class="fas fa-fire stat-icon trash"></i>
-                            <div class="num" id="stat-trash-count">0</div>
-                            <div class="lbl">Savatda</div>
+                        <div class="timer-chips">
+                            <button class="timer-chip" data-min="15">15 daq</button>
+                            <button class="timer-chip active" data-min="30">30 daq</button>
+                            <button class="timer-chip" data-min="45">45 daq</button>
+                            <button class="timer-chip" data-min="60">1 soat</button>
+                            <button class="timer-chip" data-min="0">Cheksiz</button>
                         </div>
-                        <div class="stat-mini-card">
-                            <i class="fas fa-folder stat-icon"></i>
-                            <div class="num">3</div>
-                            <div class="lbl">Papkalar</div>
+                    </div>
+
+                    <div class="setting-card">
+                        <h3>📁 Ruxsat Berilgan Albomlar</h3>
+                        <p>Bolaga faqat tanlangan albomlar ko'rinadi:</p>
+                        <div class="album-checklist">
+                            <label class="checkbox-item">
+                                <input type="checkbox" checked value="Cartoons"> 🎬 Multfilmlar (8 fayl)
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" checked value="Animals"> 🐱 Hayvonlar (5 fayl)
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" checked value="Camera"> 📷 Kamera (12 fayl)
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" value="WhatsApp"> 💬 WhatsApp (Yopiq)
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" value="Screenshots"> 📸 Screenshots (Yopiq)
+                            </label>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Bottom Navigation Bar -->
-            <nav class="bottom-nav">
+            <!-- Pro Bottom Navigation Bar -->
+            <nav class="bottom-nav hidden" id="pro-bottom-nav">
                 <button class="nav-item active" data-screen="sorter">
                     <i class="fas fa-photo-film"></i>
                     <span>Saralash</span>
@@ -221,33 +295,44 @@
                 </button>
                 <button class="nav-item" data-screen="analytics">
                     <i class="fas fa-chart-pie"></i>
-                    <span>Hisobot</span>
+                    <span>Tahlil</span>
                 </button>
             </nav>
 
         </div>
     </div>
 
-    <!-- Lightbox Fullscreen Media Viewer Modal -->
-    <div class="lightbox-modal" id="lightbox-modal">
-        <button class="lightbox-close" id="lightbox-close"><i class="fas fa-xmark"></i></button>
-        <div class="lightbox-content" id="lightbox-content"></div>
-        <div class="lightbox-caption" id="lightbox-caption"></div>
+    <!-- Kids Fullscreen Media Viewer Modal -->
+    <div class="kids-viewer-modal" id="kids-viewer-modal">
+        <button class="kids-viewer-close" id="kids-viewer-close"><i class="fas fa-arrow-left"></i></button>
+        <div class="kids-viewer-content" id="kids-viewer-content"></div>
+        <div class="kids-viewer-controls">
+            <button class="btn-kid-nav btn-kid-prev" id="btn-kid-prev"><i class="fas fa-arrow-left"></i> Oldingi</button>
+            <button class="btn-kid-nav btn-kid-next" id="btn-kid-next">Keyingi <i class="fas fa-arrow-right"></i></button>
+        </div>
     </div>
 
-    <!-- Modal for permanent deletion confirmation -->
-    <div class="modal-overlay" id="delete-confirm-modal">
-        <div class="modal-card">
+    <!-- Biometric & PIN Auth Modal -->
+    <div class="modal-overlay" id="biometric-modal">
+        <div class="modal-card biometric-card">
             <div class="modal-header">
-                <i class="fas fa-triangle-exclamation"></i>
-                <h3>Haqiqatdan ham o'chirasizmi?</h3>
+                <i class="fas fa-fingerprint biometric-icon"></i>
+                <h3>Ota-ona Tasdig'i</h3>
             </div>
             <div class="modal-body">
-                <p>Tanlangan <span class="trash-count font-bold">0</span> ta rasm va video qurilma xotirasidan butunlay o'chiriladi.</p>
+                <p>Sozlamalar yoki chiqish uchun barmoq izi yoki tizim parolingizni tasdiqlang:</p>
+                <div class="pin-display">
+                    <span class="pin-dot"></span>
+                    <span class="pin-dot"></span>
+                    <span class="pin-dot"></span>
+                    <span class="pin-dot"></span>
+                </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-outline" id="btn-modal-cancel">Bekor qilish</button>
-                <button class="btn btn-danger" id="btn-modal-confirm">Ha, o'chirilsin</button>
+                <button class="btn btn-outline" id="btn-bio-cancel">Bekor qilish</button>
+                <button class="btn btn-primary" id="btn-bio-confirm">
+                    <i class="fas fa-fingerprint"></i> Barmoq Izi Bilan Ochish
+                </button>
             </div>
         </div>
     </div>
