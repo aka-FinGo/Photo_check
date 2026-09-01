@@ -1,6 +1,6 @@
 # 📱 PhotoCheck Kids & 1:1 Slidebox Pro — Loyiha Holati va Arxitekturasi (HANDOFF)
 
-Ushbu hujjat loyihaning to'liq arxitekturasi, 1:1 Original Slidebox Sorter, Kids Safe Mode, In-App Updater, Keystore imzolash, App Icon (Adaptive & Favicon), GitHub Pages va Donat tizimini o'z ichiga oladi.
+Ushbu hujjat loyihaning to'liq arxitekturasi, 1:1 Mi Gallery Style Kids Viewer, Biometrik Chiqish Himoyasi, 1:1 Slidebox Sorter, Kids Safe Mode, In-App Updater, Keystore imzolash, App Icon (Adaptive & Favicon), GitHub Pages va Donat tizimini o'z ichiga oladi.
 
 ---
 
@@ -13,18 +13,16 @@ Ushbu hujjat loyihaning to'liq arxitekturasi, 1:1 Original Slidebox Sorter, Kids
 
 ---
 
-## 2. Amalga Oshirilgan Yangilanishlar:
-1. 🧹 **Repozitoriyani Tozalash va Professional `.gitignore`:**
-   - Barcha keraksiz vaqtinchalik fayllar, skrinshotlar, `graphify-out/`, `build_log.txt` va `web_chat/` o'chirildi.
-   - Mukammal `.gitignore` yaratildi (Gradle, build, logs, Android Studio keshlarini chetlab o'tadi, lekin `photocheck.jks` release kalitini xavfsiz saqlaydi).
-2. 🎨 **Ilova Ikonkalari (App Icons & Favicon):**
-   - **Android Adaptive Icon (Vector XML):**
-     * `drawable/ic_launcher_background.xml` (qorong'u neon gradient)
-     * `drawable/ic_launcher_foreground.xml` (Photo frame, kamera linzasi va yorqin checkmark/qalqon ramzi)
-     * `mipmap-anydpi-v26/ic_launcher.xml` va `ic_launcher_round.xml` (Android 8.0 - 15 uchun)
-     * `drawable/ic_launcher.xml` (Legacy Android uchun)
-   - **Web Favicon:** `web-demo/favicon.svg` yaratilib, veb sahifalarga ulandi.
-3. 🛠️ **Build xatosi tuzatildi:**
-   - `PhotoCheckApp.kt` da `AnimatedVisibility` sintaksis xatosi bartaraf etildi, `compileReleaseKotlin` 100% muvaffaqiyatli o'tmoqda.
+## 2. Yangi Imkoniyatlar:
+1. 🔒 **Chiqish va Fondan Qaytishda Qat'iy Biometrik Himoya (`MainActivity.kt`):**
+   - Bolalar rejimida dasturdan chiqib ketishga harakat qilingan har qanday holatda (Back tugmasi, Home / Recent apps, dasturni minimallashtirish) barmoq izi, yuz yoki tizim paroli so'raladi.
+   - Ilovaga qayta kirilganda darhol biometrik qulf ekrani paydo bo'ladi.
+2. 🎬 **1:1 Tizim Galereyasi (Mi Gallery) Uslubidagi Kids Viewer (`KidsSafeGalleryScreen.kt`):**
+   - Ortiqcha "oldinga/keyinga" tugmalari to'liq olib tashlandi.
+   - `HorizontalPager` orqali toza va silliq chapga/o'ngga surish (Swipe Left / Right).
+   - O'rnatilgan toza videopleyer (avtomatik takrorlash va video davomiyligi).
+   - O'chirish, tahrirlash va ulashish tugmalari butunlay yo'q.
+3. 🎴 **1:1 Slidebox Sorter (Klassik Pro Rejim):**
+   - Swipe Up to Trash, Pastki albomlar paneli orqali bir zumda saralash, Favorite va Undo.
 4. 💖 **Donat va Homiylik Sahifasi:**
-   - UzCard/Humo karta raqami, xalqaro va kriptovalyuta (USDT TRC20, TON) orqali qo'llab-quvvatlash imkoniyati.
+   - UzCard / Humo karta raqami, xalqaro va kripto hamyonlar bilan bir bosishda nusxalash.

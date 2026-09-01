@@ -360,13 +360,61 @@ class PhotoCheckApp {
     showKidsFullscreen(item) {
         const modal = document.getElementById('kids-viewer-modal');
         const content = document.getElementById('kids-viewer-content');
+        const counter = document.getElementById('kids-viewer-counter');
+        const list = this.getFilteredKidsMedia();
         if (!modal || !content) return;
 
-        if (item.type === 'video') {
-            content.innerHTML = `<video src="${item.url}" controls autoplay style="width: 100%; max-height: 80vh;"></video>`;
-        } else {
-            content.innerHTML = `<img src="${item.url}" alt="${item.title}" style="max-width: 100%; max-height: 80vh; object-fit: contain;">`;
+        if (counter) {
+            counter.textContent = `${state.viewingKidIndex + 1} / ${list.length}`;
         }
+
+        if (item.type === 'video') {
+            content.innerHTML = `<video src="${item.url}" controls autoplay loop style="width: 100%; max-height: 85vh; object-fit: contain;"></video>`;
+        } else {
+            content.innerHTML = `<img src="${item.url}" alt="${item.title}" style="max-width: 100%; max-height: 85vh; object-fit: contain;">`;
+        }
+
+        // Attach Mi Gallery Horizontal Swipe Gestures
+        let startX = 0;
+        let startY = 0;
+        let isSwiping = false;
+
+        const handleTouchStart = (e) => {
+            const touch = e.touches ? e.touches[0] : e;
+            startX = touch.clientX;
+            startY = touch.clientY;
+            isSwiping = true;
+        };
+
+        const handleTouchEnd = (e) => {
+            if (!isSwiping) return;
+            isSwiping = false;
+            const touch = e.changedTouches ? e.changedTouches[0] : e;
+            const diffX = touch.clientX - startX;
+            const diffY = touch.clientY - startY;
+
+            // Horizontal Swipe detected
+            if (Math.abs(diffX) > 45 && Math.abs(diffX) > Math.abs(diffY)) {
+                if (diffX < 0) {
+                    // Swipe Left -> Next Item
+                    if (state.viewingKidIndex < list.length - 1) {
+                        state.viewingKidIndex++;
+                        this.showKidsFullscreen(list[state.viewingKidIndex]);
+                    }
+                } else {
+                    // Swipe Right -> Previous Item
+                    if (state.viewingKidIndex > 0) {
+                        state.viewingKidIndex--;
+                        this.showKidsFullscreen(list[state.viewingKidIndex]);
+                    }
+                }
+            }
+        };
+
+        content.onmousedown = handleTouchStart;
+        content.onmouseup = handleTouchEnd;
+        content.ontouchstart = handleTouchStart;
+        content.ontouchend = handleTouchEnd;
 
         modal.classList.add('active');
     }

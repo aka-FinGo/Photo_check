@@ -34,6 +34,7 @@ class MainActivity : FragmentActivity() {
     private lateinit var kidsPrefs: KidsPreferencesManager
     private var mediaListState = mutableStateOf<List<MediaItem>>(emptyList())
     private var mediaObserver: ContentObserver? = null
+    private var shouldLockOnResume = false
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -55,7 +56,7 @@ class MainActivity : FragmentActivity() {
         repository = MediaRepository(applicationContext)
         kidsPrefs = KidsPreferencesManager(applicationContext)
 
-        // Setup Exit Protection (Kids Lock)
+        // Setup Exit & Back Protection (Always requires Fingerprint/PIN)
         setupBackPressedProtection()
 
         // Request storage permissions and observe gallery
@@ -96,12 +97,12 @@ class MainActivity : FragmentActivity() {
     private fun setupBackPressedProtection() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                // Any back press that could exit or change state asks for biometrics in Kids Mode
                 if (kidsPrefs.isKidsMode) {
-                    // Kids Mode: require parent authentication before exiting app
                     BiometricAuthManager.authenticate(
                         activity = this@MainActivity,
                         title = "Ilovadan Chiqish",
-                        subtitle = "Chiqish uchun ota-ona barmoq izi yoki tizim parolini tasdiqlang",
+                        subtitle = "Dasturdan chiqish uchun barmoq izi, yuz yoki tizim parolingizni tasdiqlang",
                         onSuccess = {
                             isEnabled = false
                             finish()
@@ -115,7 +116,6 @@ class MainActivity : FragmentActivity() {
                         }
                     )
                 } else {
-                    // Pro / Classic Mode: normal exit
                     isEnabled = false
                     finish()
                 }
@@ -123,9 +123,34 @@ class MainActivity : FragmentActivity() {
         })
     }
 
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // When home button is pressed or app is minimized in Kids Mode
+        if (kidsPrefs.isKidsMode) {
+            shouldLockOnResume = true
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         loadMedia()
+
+        // Require Biometric authentication if app was backgrounded
+        if (shouldLockOnResume && kidsPrefs.isKidsMode) {
+            shouldLockOnResume = false
+            BiometricAuthManager.authenticate(
+                activity = this,
+                title = "PhotoCheck Kids Qulfi",
+                subtitle = "Ilovaga qaytish uchun barmoq izi yoki tizim parolini tasdiqlang",
+                onSuccess = {
+                    // Success unlocked
+                },
+                onFailed = {
+                    // Lock retained
+                    Toast.makeText(this, "Ilova qulflangan", Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
     }
 
     override fun onDestroy() {
