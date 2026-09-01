@@ -29,7 +29,7 @@ jobs:
         id: versioning
         run: |
           RUN_NUM="${{ github.run_number }}"
-          # 1 -> 1.0.01, 2 -> 1.0.02, 10 -> 1.0.10, 100 -> 1.0.100
+          # Hisoblash: 1 -> 1.0.01, 2 -> 1.0.02, 55 -> 1.0.55
           VERSION_NAME=$(printf "1.0.%02d" "$RUN_NUM")
           VERSION_CODE="$RUN_NUM"
           
@@ -42,11 +42,11 @@ jobs:
           echo "📦 Boshlanmoqda: PhotoCheck v$VERSION_NAME (Code: $VERSION_CODE)"
           echo "=========================================="
 
-      - name: Release Keystore kalitini tekshirish / yaratish va saqlash
+      - name: Release Keystore tekshirish
         run: |
           mkdir -p android-app/app/keystore
           if [ ! -f android-app/app/keystore/photocheck.jks ]; then
-            echo "Keystore topilmadi, doimiy photocheck.jks yaratilmoqda va saqlanmoqda..."
+            echo "Keystore yaratilmoqda..."
             keytool -genkeypair -v \
               -keystore android-app/app/keystore/photocheck.jks \
               -alias photocheck \
@@ -56,13 +56,6 @@ jobs:
               -storepass photocheck123 \
               -keypass photocheck123 \
               -dname "CN=PhotoCheck, OU=FinGo, O=FinGo, L=Tashkent, ST=Tashkent, C=UZ"
-            
-            # Repozitoriyaga bir umrlik imzo sifatida saqlab qo'yish
-            git config --global user.name "github-actions[bot]"
-            git config --global user.email "github-actions[bot]@users.noreply.github.com"
-            git add android-app/app/keystore/photocheck.jks
-            git commit -m "Persist release signing keystore for continuous in-app updates" || true
-            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/aka-FinGo/Photo_check.git main || true
           else
             echo "Mavjud doimiy photocheck.jks topildi."
           fi
@@ -79,57 +72,61 @@ jobs:
             -PKEYSTORE_PASSWORD="photocheck123" \
             -PKEY_ALIAS="photocheck" \
             -PKEY_PASSWORD="photocheck123" \
-            --stacktrace --no-daemon > build_log.txt 2>&1 || {
-            echo "=== BUILD FAILED: PUSHING LOGS TO BRANCH ==="
-            git config --global user.name "github-actions[bot]"
-            git config --global user.email "github-actions[bot]@users.noreply.github.com"
-            git checkout -b build-logs || git checkout build-logs
-            cp build_log.txt ../build_log.txt
-            cd ..
-            git add build_log.txt
-            git commit -m "Upload build failure log"
-            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/aka-FinGo/Photo_check.git build-logs --force
-            exit 1
-          }
+            --stacktrace --no-daemon
 
-      - name: APK faylini ajratish va tayyorlash
+      - name: APK fayllarini ajratish va tayyorlash
         run: |
           mkdir -p dist
-          FOUND_APK=$(find android-app/app/build/outputs/apk/release -name "*.apk" | head -n 1)
-          if [ -z "$FOUND_APK" ]; then
-            FOUND_APK=$(find android-app/app/build/outputs/apk -name "*.apk" | head -n 1)
+          echo "=== Yig'ilgan APK fayllar ro'yxati ==="
+          find android-app/app/build/outputs/apk -type f -name "*.apk" -ls
+          
+          # Universal APK ni qidirish
+          UNIVERSAL_APK=$(find android-app/app/build/outputs/apk -name "*universal*.apk" | head -n 1)
+          if [ -z "$UNIVERSAL_APK" ]; then
+            UNIVERSAL_APK=$(find android-app/app/build/outputs/apk -name "*.apk" | head -n 1)
           fi
           
-          echo "Topilgan APK: $FOUND_APK"
-          if [ -n "$FOUND_APK" ]; then
-            cp "$FOUND_APK" dist/PhotoCheck.apk
-            cp "$FOUND_APK" "dist/PhotoCheck-v${{ env.VERSION_NAME }}.apk"
-            ls -la dist/
+          if [ -n "$UNIVERSAL_APK" ]; then
+            echo "Asosiy Universal APK topildi: $UNIVERSAL_APK"
+            cp "$UNIVERSAL_APK" dist/PhotoCheck.apk
+            cp "$UNIVERSAL_APK" "dist/PhotoCheck-v${{ env.VERSION_NAME }}.apk"
           else
             echo "Xatolik: Hech qanday APK topilmadi!"
             exit 1
           fi
+          
+          # Barcha split APK fayllarni dist ga nusxalash
+          for apk in $(find android-app/app/build/outputs/apk -name "*.apk"); do
+            fname=$(basename "$apk")
+            cp "$apk" "dist/$fname"
+          done
+          
+          echo "=== Tayyorlangan dist fayllari ==="
+          ls -la dist/
 
       - name: 📱 PhotoCheck APK Artifacts-ga yuklash
         uses: actions/upload-artifact@v4
         with:
           name: PhotoCheck-v${{ env.VERSION_NAME }}-APK
-          path: dist/PhotoCheck.apk
+          path: dist/*
           retention-days: 14
 
       - name: 🚀 GitHub Release va In-App Update uchun nashr qilish
         uses: softprops/action-gh-release@v2
+        if: success()
         with:
           tag_name: "v${{ env.VERSION_NAME }}"
           name: "PhotoCheck v${{ env.VERSION_NAME }}"
           body: |
             ## 📱 PhotoCheck v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }})
 
-            ### 🚀 Yangilanishlar va Yaxshilanishlar:
-            * **In-App Updater:** Dastur ichidan to'g'ridan-to'g'ri yangilanishlarni qabul qilish va yuklab olish.
-            * **Dinamik Versiyalash:** Avtomatik `1.0.XX` tartibi va xavfsiz reliz imzosi (v1 + v2).
-            * **Bolalar Xavfsiz Galereyasi:** Biometrik qulf, ota-ona nazorati va ekran vaqti taymeri.
-            * **PhotoCheck Pro:** Slidebox aqlli saralash, dublikatlarni tozalash va media siqish.
+            ### 🚀 Yangilanishlar va Imkoniyatlar:
+            * **Gorizontal Silliq Surish (Swipe):** Mi Gallery uslubida rasmlar va videolarni chapga/o'ngga erkin surish.
+            * **Pinch-to-Zoom:** Rasmlarni 2 barmoq bilan yoki 2 marta bosib kattalashtirib ko'rish.
+            * **Gamburger Menyusi & Bento Vidjet:** Ota-ona sozlamalarida tartibli boshqaruv, yo'riqnoma va statistika.
+            * **In-App Updater:** Dastur ichidan to'g'ridan-to'g'ri yangilanishlarni qabul qilish.
+            * **Bolalar Xavfsiz Galereyasi:** Biometrik qulf, ota-ona nazorati va uxlash vaqti taymeri.
+            * **PhotoCheck Pro:** 1:1 Slidebox saralash, savat va albomlar boshqaruvi.
 
             ---
             *Avtomatik tarzda GitHub Actions CI/CD orqali yig'ilgan va imzolangan.*
@@ -138,5 +135,6 @@ jobs:
             dist/PhotoCheck-v${{ env.VERSION_NAME }}.apk
           draft: false
           prerelease: false
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
