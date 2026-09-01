@@ -1,4 +1,4 @@
-// PhotoCheck 1:1 Slidebox & Kids Safe Gallery Web Prototype
+// PhotoCheck Kids & 1:1 Slidebox Pro Web App
 const state = {
     isKidsMode: true,
     whitelistedFolders: ['Cartoons', 'Animals', 'Camera'],
@@ -10,70 +10,79 @@ const state = {
     pendingAuthAction: null,
     activeScreen: 'kids-gallery',
     
-    // Sample media database
+    // Media database
     media: [
         {
-            id: 'k1',
+            id: 'm1',
             type: 'image',
             title: 'Qiziqarli Tom va Jerri',
             folder: 'Cartoons',
             url: 'assets/pic1.jpg',
             size: '3.4 MB',
-            date: 'Bugun, 14:20'
+            date: 'Bugun, 14:20',
+            isFavorite: false
         },
         {
-            id: 'k2',
+            id: 'm2',
             type: 'image',
-            title: 'Mittivoy Mushukcha',
-            folder: 'Animals',
-            url: 'assets/pic3.jpg',
-            size: '2.8 MB',
-            date: 'Kecha, 09:15'
+            title: 'Kiberpank Neon Shahri',
+            folder: 'Camera',
+            url: 'assets/pic2.jpg',
+            size: '4.1 MB',
+            date: 'Bugun, 11:05',
+            isFavorite: false
         },
         {
-            id: 'k3',
+            id: 'm3',
             type: 'video',
             title: 'Koinot kemasining parvozi',
             folder: 'Cartoons',
             url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
             size: '8.2 MB',
             duration: '00:15',
-            date: 'Kecha, 18:45'
+            date: 'Kecha, 18:45',
+            isFavorite: false
         },
         {
-            id: 'k4',
+            id: 'm4',
             type: 'image',
-            title: 'Sehrli Tabiat Manzarasi',
-            folder: 'Camera',
-            url: 'assets/pic2.jpg',
-            size: '4.1 MB',
-            date: 'Bugun, 11:05'
+            title: 'Mittivoy Mushukcha',
+            folder: 'Animals',
+            url: 'assets/pic3.jpg',
+            size: '2.8 MB',
+            date: 'Kecha, 09:15',
+            isFavorite: true
         },
         {
-            id: 'k5',
+            id: 'm5',
             type: 'image',
             title: 'Kichik Kosmonavt',
             folder: 'Cartoons',
             url: 'assets/pic4.jpg',
             size: '5.3 MB',
-            date: '28-iyul, 15:30'
+            date: '28-iyul, 15:30',
+            isFavorite: false
         },
         {
-            id: 'p1',
+            id: 'm6',
             type: 'image',
-            title: 'Shaxsiy Hujjat',
-            folder: 'WhatsApp',
-            url: 'assets/pic1.jpg',
-            size: '1.2 MB',
-            date: '20-iyul, 10:00'
+            title: 'Oila bilan sayohat',
+            folder: 'Camera',
+            url: 'assets/pic2.jpg',
+            size: '3.9 MB',
+            date: '20-iyul, 10:00',
+            isFavorite: false
         }
     ],
-    customAlbums: ['Ta\'til 2026', 'Saralangan'],
-    assignedAlbums: {}, // mediaId -> albumName
-    favorites: [],
+
+    // User created custom albums for quick sorting
+    userAlbums: ["Ta'til", "Oila", "Do'stlar", "Tabiat"],
+    
+    // Trash and undo action history
     trash: [],
-    historyStack: [], // [{ type: 'trash'|'album'|'fav', item, prevIndex, ... }]
-    currentIndex: 0
+    undoStack: [],
+    currentIndex: 0,
+    selectedProAlbumFilter: 'BARCHA FAYLLAR'
 };
 
 class PhotoCheckApp {
@@ -85,8 +94,9 @@ class PhotoCheckApp {
         this.setupEventListeners();
         this.startTimer();
         this.renderKidsGallery();
-        this.renderSlidebox();
-        this.renderParentChecklist();
+        this.renderAlbumChecklist();
+        this.renderSlideboxTray();
+        this.renderCardStack();
         this.updateTime();
         setInterval(() => this.updateTime(), 30000);
     }
@@ -98,7 +108,7 @@ class PhotoCheckApp {
         if (el) el.textContent = timeStr;
     }
 
-    // Live Screen Time Timer
+    // Live Screen Time Countdown
     startTimer() {
         if (this.timerInterval) clearInterval(this.timerInterval);
 
@@ -128,7 +138,7 @@ class PhotoCheckApp {
     }
 
     setupEventListeners() {
-        // Parent Shield click (triggers Biometrics)
+        // Parent Shield click
         document.getElementById('btn-parent-shield')?.addEventListener('click', () => {
             this.requestBiometricAuth('Ota-ona Sozlamalari', () => {
                 this.showScreen('parent-settings');
@@ -163,13 +173,10 @@ class PhotoCheckApp {
             }
         });
 
-        // Kids Mode switch in settings
+        // Kids Mode toggle in settings
         document.getElementById('toggle-kids-mode')?.addEventListener('change', (e) => {
             state.isKidsMode = e.target.checked;
             this.showToast(state.isKidsMode ? 'Bolalar rejimi yoqildi 👶' : 'Bolalar rejimi o\'chirildi 🛡️');
-            if (state.isKidsMode) {
-                this.switchToKidsMode();
-            }
         });
 
         // Launch Pro Mode button
@@ -190,6 +197,26 @@ class PhotoCheckApp {
         // Pro settings gear
         document.getElementById('btn-pro-settings')?.addEventListener('click', () => {
             this.showScreen('parent-settings');
+        });
+
+        // Open Donate buttons
+        document.getElementById('btn-open-donate-kids')?.addEventListener('click', () => this.openDonateScreen());
+        document.getElementById('btn-open-donate-pro')?.addEventListener('click', () => this.openDonateScreen());
+
+        // Bulk Album Selection (Select All / Deselect All)
+        document.getElementById('btn-select-all-albums')?.addEventListener('click', () => {
+            const allFolders = Array.from(new Set(state.media.map(m => m.folder)));
+            state.whitelistedFolders = allFolders;
+            this.renderAlbumChecklist();
+            this.renderKidsGallery();
+            this.showToast('Barcha albomlar belgilandi ✅');
+        });
+
+        document.getElementById('btn-clear-all-albums')?.addEventListener('click', () => {
+            state.whitelistedFolders = [];
+            this.renderAlbumChecklist();
+            this.renderKidsGallery();
+            this.showToast('Barcha albomlar bekor qilindi ❌');
         });
 
         // Timer chips
@@ -214,22 +241,6 @@ class PhotoCheckApp {
             this.showToast('Taymer qayta boshlandi');
         });
 
-        // Parent Bulk Album Selection (Barchasi / Bekor qilish)
-        document.getElementById('btn-select-all-albums')?.addEventListener('click', () => {
-            const allFolders = ['Cartoons', 'Animals', 'Camera', 'WhatsApp', 'Screenshots'];
-            state.whitelistedFolders = [...allFolders];
-            this.renderParentChecklist();
-            this.renderKidsGallery();
-            this.showToast('Barcha albomlar tanlandi ✅');
-        });
-
-        document.getElementById('btn-clear-all-albums')?.addEventListener('click', () => {
-            state.whitelistedFolders = [];
-            this.renderParentChecklist();
-            this.renderKidsGallery();
-            this.showToast('Barcha albomlar bekor qilindi ❌');
-        });
-
         // Kids Folder filter chips
         document.querySelectorAll('#kids-folder-bar .chip').forEach(chip => {
             chip.addEventListener('click', () => {
@@ -240,418 +251,62 @@ class PhotoCheckApp {
             });
         });
 
-        // Slidebox Toolbar Buttons
-        document.getElementById('btn-undo')?.addEventListener('click', () => this.undoLastAction());
-        document.getElementById('btn-prev')?.addEventListener('click', () => this.prevPhoto());
-        document.getElementById('btn-next')?.addEventListener('click', () => this.nextPhoto());
-        document.getElementById('btn-fav')?.addEventListener('click', () => this.toggleFavorite());
-        document.getElementById('btn-share')?.addEventListener('click', () => {
-            const active = this.getActiveMediaList();
-            if (active.length > 0) {
-                const item = active[state.currentIndex];
-                if (navigator.share) {
-                    navigator.share({ title: item.title, url: window.location.href });
-                } else {
-                    this.showToast('Ulashish oynasi ochildi 🔗');
-                }
+        // Kids Fullscreen Viewer Navigation
+        document.getElementById('kids-viewer-close')?.addEventListener('click', () => {
+            document.getElementById('kids-viewer-modal')?.classList.remove('active');
+        });
+
+        document.getElementById('btn-kid-prev')?.addEventListener('click', () => {
+            const list = this.getFilteredKidsMedia();
+            if (state.viewingKidIndex > 0) {
+                state.viewingKidIndex--;
+                this.showKidsFullscreen(list[state.viewingKidIndex]);
             }
         });
 
-        // Reset filter button on empty state
-        document.getElementById('btn-reset-filter')?.addEventListener('click', () => {
-            state.trash = [];
-            state.currentIndex = 0;
-            this.renderSlidebox();
-            this.showToast('Fayllar qayta tiklandi!');
+        document.getElementById('btn-kid-next')?.addEventListener('click', () => {
+            const list = this.getFilteredKidsMedia();
+            if (state.viewingKidIndex < list.length - 1) {
+                state.viewingKidIndex++;
+                this.showKidsFullscreen(list[state.viewingKidIndex]);
+            }
         });
 
-        // Trash Management Modal
-        document.getElementById('btn-open-trash')?.addEventListener('click', () => {
-            this.openTrashModal();
-        });
-        document.getElementById('btn-close-trash')?.addEventListener('click', () => {
-            document.getElementById('trash-modal')?.classList.remove('active');
-        });
-        document.getElementById('btn-restore-all')?.addEventListener('click', () => {
-            state.trash = [];
-            this.updateTrashCounter();
-            this.renderSlidebox();
-            document.getElementById('trash-modal')?.classList.remove('active');
-            this.showToast('Barcha rasmlar tiklandi! 🔄');
-        });
-        document.getElementById('btn-delete-all-perm')?.addEventListener('click', () => {
-            state.media = state.media.filter(m => !state.trash.includes(m.id));
-            state.trash = [];
-            this.updateTrashCounter();
-            this.renderSlidebox();
-            document.getElementById('trash-modal')?.classList.remove('active');
-            this.showToast('Savat to\'liq tozalandi 🗑️');
+        // Slidebox Undo & Favorite buttons
+        document.getElementById('btn-slide-undo')?.addEventListener('click', () => this.performUndo());
+        document.getElementById('btn-slide-fav')?.addEventListener('click', () => this.toggleCurrentFavorite());
+
+        // Top Bar Trash button
+        document.getElementById('btn-open-trash')?.addEventListener('click', () => this.openTrashModal());
+        document.getElementById('btn-close-trash-modal')?.addEventListener('click', () => this.closeTrashModal());
+        document.getElementById('btn-empty-all-trash')?.addEventListener('click', () => this.emptyTrash());
+        document.getElementById('btn-restore-all-trash')?.addEventListener('click', () => this.restoreAllTrash());
+
+        // Album filter dropdown in Pro mode
+        document.getElementById('btn-album-filter')?.addEventListener('click', () => this.openAlbumFilterModal());
+        document.getElementById('btn-close-filter-modal')?.addEventListener('click', () => this.closeAlbumFilterModal());
+
+        // Create Album Modal
+        document.getElementById('btn-cancel-create-album')?.addEventListener('click', () => {
+            document.getElementById('create-album-modal')?.classList.remove('active');
         });
 
-        // New Album Dialog
-        document.getElementById('btn-open-add-album')?.addEventListener('click', () => {
-            const modal = document.getElementById('new-album-modal');
-            const input = document.getElementById('new-album-input');
-            if (input) input.value = '';
-            if (modal) modal.classList.add('active');
-        });
-
-        document.getElementById('btn-cancel-album')?.addEventListener('click', () => {
-            document.getElementById('new-album-modal')?.classList.remove('active');
-        });
-
-        document.getElementById('btn-save-album')?.addEventListener('click', () => {
-            const input = document.getElementById('new-album-input');
-            const name = input?.value.trim();
+        document.getElementById('btn-confirm-create-album')?.addEventListener('click', () => {
+            const input = document.getElementById('new-album-name-input');
+            const name = input ? input.value.trim() : '';
             if (name) {
-                if (!state.customAlbums.includes(name)) {
-                    state.customAlbums.push(name);
+                if (!state.userAlbums.includes(name)) {
+                    state.userAlbums.push(name);
+                    this.renderSlideboxTray();
+                    this.showToast(`"${name}" albomi yaratildi! 📁`);
                 }
-                const active = this.getActiveMediaList();
-                if (active.length > 0) {
-                    const item = active[state.currentIndex];
-                    this.sortToAlbum(item, name);
-                }
+                if (input) input.value = '';
+                document.getElementById('create-album-modal')?.classList.remove('active');
             }
-            document.getElementById('new-album-modal')?.classList.remove('active');
-        });
-
-        // Update Check Button in settings
-        document.getElementById('btn-check-update')?.addEventListener('click', () => {
-            this.showToast('Sizda eng so\'nggi versiya (v1.0.01) o\'rnatilgan ✅');
-        });
-
-        // Card Touch Gestures (Swipe Up to Trash, Left/Right navigation)
-        this.setupCardGestures();
-    }
-
-    setupCardGestures() {
-        const card = document.getElementById('slidebox-card');
-        const trashBadge = document.getElementById('trash-overlay-badge');
-        if (!card) return;
-
-        let startX = 0, startY = 0, currentX = 0, currentY = 0;
-        let isDragging = false;
-
-        const onStart = (e) => {
-            const active = this.getActiveMediaList();
-            if (active.length === 0) return;
-            isDragging = true;
-            const touch = e.touches ? e.touches[0] : e;
-            startX = touch.clientX;
-            startY = touch.clientY;
-            currentX = startX;
-            currentY = startY;
-            card.style.transition = 'none';
-        };
-
-        const onMove = (e) => {
-            if (!isDragging) return;
-            const touch = e.touches ? e.touches[0] : e;
-            currentX = touch.clientX;
-            currentY = touch.clientY;
-            const deltaX = currentX - startX;
-            const deltaY = currentY - startY;
-
-            if (deltaY < -30) {
-                trashBadge?.classList.add('active');
-            } else {
-                trashBadge?.classList.remove('active');
-            }
-
-            const scale = deltaY < 0 ? Math.max(0.75, 1 + deltaY / 1000) : 1;
-            card.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scale})`;
-        };
-
-        const onEnd = () => {
-            if (!isDragging) return;
-            isDragging = false;
-            trashBadge?.classList.remove('active');
-            card.style.transition = 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-
-            const deltaX = currentX - startX;
-            const deltaY = currentY - startY;
-
-            if (deltaY < -70) {
-                // 👆 SWIPE UP TO TRASH
-                card.style.transform = `translate(${deltaX}px, -800px) scale(0.2)`;
-                setTimeout(() => {
-                    const active = this.getActiveMediaList();
-                    if (active.length > 0) {
-                        const item = active[state.currentIndex];
-                        this.trashPhoto(item);
-                    }
-                    card.style.transition = 'none';
-                    card.style.transform = 'translate(0, 0) scale(1)';
-                }, 200);
-            } else if (deltaX > 100) {
-                // 👉 SWIPE RIGHT (PREV)
-                this.prevPhoto();
-                card.style.transform = 'translate(0, 0) scale(1)';
-            } else if (deltaX < -100) {
-                // 👈 SWIPE LEFT (NEXT)
-                this.nextPhoto();
-                card.style.transform = 'translate(0, 0) scale(1)';
-            } else {
-                card.style.transform = 'translate(0, 0) scale(1)';
-            }
-        };
-
-        card.addEventListener('mousedown', onStart);
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onEnd);
-
-        card.addEventListener('touchstart', onStart, { passive: true });
-        window.addEventListener('touchmove', onMove, { passive: true });
-        window.addEventListener('touchend', onEnd);
-    }
-
-    getActiveMediaList() {
-        return state.media.filter(m => !state.trash.includes(m.id));
-    }
-
-    renderSlidebox() {
-        const active = this.getActiveMediaList();
-        const mediaContainer = document.getElementById('slidebox-media');
-        const emptyState = document.getElementById('slidebox-empty-state');
-        const counter = document.getElementById('photo-counter');
-        const card = document.getElementById('slidebox-card');
-        const assignedBadge = document.getElementById('assigned-album-badge');
-        const assignedName = document.getElementById('assigned-album-name');
-        const undoBtn = document.getElementById('btn-undo');
-        const favBtn = document.getElementById('btn-fav');
-
-        this.updateTrashCounter();
-
-        if (undoBtn) undoBtn.disabled = state.historyStack.length === 0;
-
-        if (active.length === 0) {
-            if (mediaContainer) mediaContainer.innerHTML = '';
-            if (card) card.classList.add('hidden');
-            if (emptyState) emptyState.classList.remove('hidden');
-            if (counter) counter.textContent = '0 / 0';
-            this.renderAlbumPills(null);
-            return;
-        }
-
-        if (card) card.classList.remove('hidden');
-        if (emptyState) emptyState.classList.add('hidden');
-
-        if (state.currentIndex >= active.length) {
-            state.currentIndex = active.length - 1;
-        }
-        if (state.currentIndex < 0) state.currentIndex = 0;
-
-        const current = active[state.currentIndex];
-        if (counter) counter.textContent = `${state.currentIndex + 1} / ${active.length}`;
-
-        if (mediaContainer) {
-            if (current.type === 'video') {
-                mediaContainer.innerHTML = `<video src="${current.url}" controls autoplay muted style="width:100%; height:100%; object-fit:contain;"></video>`;
-            } else {
-                mediaContainer.innerHTML = `<img src="${current.url}" alt="${current.title}">`;
-            }
-        }
-
-        // Assigned album badge
-        const assigned = state.assignedAlbums[current.id];
-        if (assigned) {
-            assignedBadge?.classList.remove('hidden');
-            if (assignedName) assignedName.textContent = assigned;
-        } else {
-            assignedBadge?.classList.add('hidden');
-        }
-
-        // Favorite button state
-        const isFav = state.favorites.includes(current.id);
-        if (favBtn) {
-            if (isFav) {
-                favBtn.classList.add('active');
-                favBtn.innerHTML = '<i class="fas fa-heart"></i>';
-            } else {
-                favBtn.classList.remove('active');
-                favBtn.innerHTML = '<i class="far fa-heart"></i>';
-            }
-        }
-
-        this.renderAlbumPills(current);
-    }
-
-    renderAlbumPills(currentItem) {
-        const row = document.getElementById('album-pills-row');
-        if (!row) return;
-
-        // Keep "+ Yangi Albom" button
-        const addBtn = document.getElementById('btn-open-add-album');
-        row.innerHTML = '';
-        if (addBtn) row.appendChild(addBtn);
-
-        const allAlbums = ['Camera', 'Cartoons', 'Animals', 'WhatsApp', ...state.customAlbums];
-        const unique = [...new Set(allAlbums)];
-
-        unique.forEach(albumName => {
-            const isAssigned = currentItem && state.assignedAlbums[currentItem.id] === albumName;
-            const btn = document.createElement('button');
-            btn.className = `album-pill ${isAssigned ? 'assigned' : ''}`;
-            
-            const icon = albumName.includes('Camera') ? '📷' :
-                         albumName.includes('Cartoon') ? '🎬' :
-                         albumName.includes('Animal') ? '🐱' :
-                         albumName.includes('WhatsApp') ? '💬' : '📁';
-
-            btn.innerHTML = `${icon} ${albumName}`;
-            btn.addEventListener('click', () => {
-                if (currentItem) {
-                    this.sortToAlbum(currentItem, albumName);
-                }
-            });
-            row.appendChild(btn);
         });
     }
 
-    trashPhoto(item) {
-        state.trash.push(item.id);
-        state.historyStack.push({ type: 'trash', item, prevIndex: state.currentIndex });
-        this.showToast('Savatga tashlandi 🗑️');
-        this.renderSlidebox();
-    }
-
-    sortToAlbum(item, albumName) {
-        state.assignedAlbums[item.id] = albumName;
-        state.historyStack.push({ type: 'album', item, albumName, prevIndex: state.currentIndex });
-        this.showToast(`"${albumName}" albomiga qo'shildi! 📁`);
-        this.nextPhoto();
-    }
-
-    toggleFavorite() {
-        const active = this.getActiveMediaList();
-        if (active.length === 0) return;
-        const item = active[state.currentIndex];
-        const isFav = state.favorites.includes(item.id);
-        if (isFav) {
-            state.favorites = state.favorites.filter(id => id !== item.id);
-            this.showToast('Sevimlilardan chiqarildi');
-        } else {
-            state.favorites.push(item.id);
-            this.showToast('Sevimlilarga qo\'shildi ❤️');
-        }
-        state.historyStack.push({ type: 'fav', item, prevFav: isFav });
-        this.renderSlidebox();
-    }
-
-    undoLastAction() {
-        if (state.historyStack.length === 0) return;
-        const last = state.historyStack.pop();
-
-        if (last.type === 'trash') {
-            state.trash = state.trash.filter(id => id !== last.item.id);
-            state.currentIndex = last.prevIndex;
-            this.showToast('Savatdan qaytarildi ↶');
-        } else if (last.type === 'album') {
-            delete state.assignedAlbums[last.item.id];
-            state.currentIndex = last.prevIndex;
-            this.showToast('Albom saralash bekor qilindi ↶');
-        } else if (last.type === 'fav') {
-            if (last.prevFav) {
-                state.favorites.push(last.item.id);
-            } else {
-                state.favorites = state.favorites.filter(id => id !== last.item.id);
-            }
-        }
-        this.renderSlidebox();
-    }
-
-    nextPhoto() {
-        const active = this.getActiveMediaList();
-        if (state.currentIndex < active.length - 1) {
-            state.currentIndex++;
-            this.renderSlidebox();
-        }
-    }
-
-    prevPhoto() {
-        if (state.currentIndex > 0) {
-            state.currentIndex--;
-            this.renderSlidebox();
-        }
-    }
-
-    updateTrashCounter() {
-        const count = state.trash.length;
-        const el = document.getElementById('trash-header-count');
-        const btn = document.getElementById('btn-open-trash');
-        if (el) el.textContent = count;
-        if (btn) {
-            if (count > 0) btn.classList.add('has-items');
-            else btn.classList.remove('has-items');
-        }
-    }
-
-    openTrashModal() {
-        const modal = document.getElementById('trash-modal');
-        const grid = document.getElementById('trash-modal-grid');
-        const subtitle = document.getElementById('trash-modal-subtitle');
-        if (!modal || !grid) return;
-
-        const trashed = state.media.filter(m => state.trash.includes(m.id));
-        if (subtitle) subtitle.textContent = `${trashed.length} ta fayl (${(trashed.length * 3.2).toFixed(1)} MB)`;
-
-        grid.innerHTML = '';
-        if (trashed.length === 0) {
-            grid.innerHTML = '<p style="grid-column:span 3; color:gray; text-align:center; padding:20px;">Savat bo\'sh!</p>';
-        } else {
-            trashed.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'trash-item';
-                card.innerHTML = `<img src="${item.url}" title="Tiklash uchun bosing">`;
-                card.addEventListener('click', () => {
-                    state.trash = state.trash.filter(id => id !== item.id);
-                    this.openTrashModal();
-                    this.renderSlidebox();
-                    this.showToast('Rasm tiklandi! 🔄');
-                });
-                grid.appendChild(card);
-            });
-        }
-        modal.classList.add('active');
-    }
-
-    renderParentChecklist() {
-        const container = document.getElementById('parent-album-checklist');
-        if (!container) return;
-
-        const allFolders = [
-            { name: 'Cartoons', label: '🎬 Multfilmlar (8 fayl)' },
-            { name: 'Animals', label: '🐱 Hayvonlar (5 fayl)' },
-            { name: 'Camera', label: '📷 Kamera (12 fayl)' },
-            { name: 'WhatsApp', label: '💬 WhatsApp (Yopiq)' },
-            { name: 'Screenshots', label: '📸 Screenshots (Yopiq)' }
-        ];
-
-        container.innerHTML = '';
-        allFolders.forEach(folder => {
-            const isChecked = state.whitelistedFolders.includes(folder.name);
-            const label = document.createElement('label');
-            label.className = 'checkbox-item';
-            label.innerHTML = `
-                <span>${folder.label}</span>
-                <input type="checkbox" value="${folder.name}" ${isChecked ? 'checked' : ''}>
-            `;
-            const cb = label.querySelector('input');
-            cb?.addEventListener('change', () => {
-                if (cb.checked) {
-                    if (!state.whitelistedFolders.includes(folder.name)) {
-                        state.whitelistedFolders.push(folder.name);
-                    }
-                } else {
-                    state.whitelistedFolders = state.whitelistedFolders.filter(f => f !== folder.name);
-                }
-                this.renderKidsGallery();
-            });
-            container.appendChild(label);
-        });
-    }
-
+    // Filtered Kids Media
     getFilteredKidsMedia() {
         return state.media.filter(item => {
             const allowedInWhitelist = state.whitelistedFolders.includes(item.folder);
@@ -716,15 +371,374 @@ class PhotoCheckApp {
         modal.classList.add('active');
     }
 
-    requestBiometricAuth(actionTitle, onSuccess) {
+    // Parent Settings Album Checkboxes
+    renderAlbumChecklist() {
+        const container = document.getElementById('album-checklist-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const allFolders = Array.from(new Set(state.media.map(m => m.folder)));
+        allFolders.forEach(folder => {
+            const count = state.media.filter(m => m.folder === folder).length;
+            const isChecked = state.whitelistedFolders.includes(folder);
+
+            const label = document.createElement('label');
+            label.className = 'checkbox-item';
+            label.innerHTML = `
+                <input type="checkbox" value="${folder}" ${isChecked ? 'checked' : ''}>
+                <span>📁 ${folder} (${count} ta fayl)</span>
+            `;
+
+            label.querySelector('input').addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    if (!state.whitelistedFolders.includes(folder)) state.whitelistedFolders.push(folder);
+                } else {
+                    state.whitelistedFolders = state.whitelistedFolders.filter(f => f !== folder);
+                }
+                this.renderKidsGallery();
+            });
+
+            container.appendChild(label);
+        });
+    }
+
+    // 1:1 Slidebox Active Sorter List
+    getProActiveMedia() {
+        return state.media.filter(item => {
+            const notInTrash = !state.trash.includes(item.id);
+            const matchesFilter = state.selectedProAlbumFilter === 'BARCHA FAYLLAR' || item.folder.toLowerCase() === state.selectedProAlbumFilter.toLowerCase();
+            return notInTrash && matchesFilter;
+        });
+    }
+
+    getCurrentProItem() {
+        const list = this.getProActiveMedia();
+        if (list.length === 0) return null;
+        const safeIndex = Math.min(Math.max(0, state.currentIndex), list.length - 1);
+        return list[safeIndex];
+    }
+
+    renderCardStack() {
+        const stack = document.getElementById('card-stack');
+        const emptyState = document.getElementById('empty-state');
+        if (!stack) return;
+
+        const currentItem = this.getCurrentProItem();
+        this.updateTrashCounter();
+
+        if (!currentItem) {
+            stack.innerHTML = '';
+            if (emptyState) emptyState.classList.add('active');
+            return;
+        }
+
+        if (emptyState) emptyState.classList.remove('active');
+        stack.innerHTML = '';
+
+        const card = document.createElement('div');
+        card.className = 'card-item';
+        card.id = 'current-swipe-card';
+        card.innerHTML = currentItem.type === 'video'
+            ? `<video src="${currentItem.url}" controls autoplay muted style="width: 100%; height: 100%; object-fit: cover;"></video>`
+            : `<img src="${currentItem.url}" alt="${currentItem.title}" style="width: 100%; height: 100%; object-fit: cover;">`;
+
+        stack.appendChild(card);
+        this.attachCardGestures(card, currentItem);
+        this.updateFavButtonState(currentItem);
+    }
+
+    attachCardGestures(card, item) {
+        let isDragging = false;
+        let startY = 0, startX = 0;
+        let currentY = 0, currentX = 0;
+
+        const overlayUp = document.querySelector('.swipe-up-overlay');
+        const overlayLeft = document.querySelector('.swipe-left-overlay');
+        const overlayRight = document.querySelector('.swipe-right-overlay');
+
+        const onTouchStart = (e) => {
+            isDragging = true;
+            const touch = e.touches ? e.touches[0] : e;
+            startX = touch.clientX;
+            startY = touch.clientY;
+            card.style.transition = 'none';
+        };
+
+        const onTouchMove = (e) => {
+            if (!isDragging) return;
+            const touch = e.touches ? e.touches[0] : e;
+            currentX = touch.clientX - startX;
+            currentY = touch.clientY - startY;
+
+            const rotate = currentX * 0.05;
+            card.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotate}deg)`;
+
+            // Swipe Up to Trash visual feedback
+            if (currentY < -40 && overlayUp) {
+                overlayUp.style.opacity = Math.min(1, Math.abs(currentY) / 120);
+            } else if (overlayUp) {
+                overlayUp.style.opacity = '0';
+            }
+
+            // Left/Right feedback
+            if (currentX < -40 && overlayLeft) {
+                overlayLeft.style.opacity = Math.min(1, Math.abs(currentX) / 120);
+            } else if (overlayLeft) {
+                overlayLeft.style.opacity = '0';
+            }
+
+            if (currentX > 40 && overlayRight) {
+                overlayRight.style.opacity = Math.min(1, Math.abs(currentX) / 120);
+            } else if (overlayRight) {
+                overlayRight.style.opacity = '0';
+            }
+        };
+
+        const onTouchEnd = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            card.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
+
+            if (overlayUp) overlayUp.style.opacity = '0';
+            if (overlayLeft) overlayLeft.style.opacity = '0';
+            if (overlayRight) overlayRight.style.opacity = '0';
+
+            // Swipe UP -> Move to Trash
+            if (currentY < -80) {
+                card.style.transform = 'translate(0px, -600px) scale(0.3)';
+                setTimeout(() => {
+                    this.moveToTrash(item);
+                }, 200);
+            }
+            // Swipe LEFT -> Next
+            else if (currentX < -90) {
+                card.style.transform = 'translate(-600px, 0px)';
+                setTimeout(() => {
+                    this.nextCard();
+                }, 200);
+            }
+            // Swipe RIGHT -> Previous
+            else if (currentX > 90) {
+                card.style.transform = 'translate(600px, 0px)';
+                setTimeout(() => {
+                    this.prevCard();
+                }, 200);
+            }
+            // Snap back
+            else {
+                card.style.transform = 'translate(0px, 0px) rotate(0deg)';
+            }
+        };
+
+        card.addEventListener('mousedown', onTouchStart);
+        window.addEventListener('mousemove', onTouchMove);
+        window.addEventListener('mouseup', onTouchEnd);
+
+        card.addEventListener('touchstart', onTouchStart, { passive: true });
+        window.addEventListener('touchmove', onTouchMove, { passive: true });
+        window.addEventListener('touchend', onTouchEnd);
+    }
+
+    // 1:1 Slidebox Actions
+    moveToTrash(item) {
+        state.trash.push(item.id);
+        state.undoStack.push({ type: 'trash', itemId: item.id });
+        this.showToast('Savatga tashlandi 🗑️');
+        this.renderCardStack();
+    }
+
+    nextCard() {
+        const list = this.getProActiveMedia();
+        if (state.currentIndex < list.length - 1) {
+            state.currentIndex++;
+            this.renderCardStack();
+        } else {
+            this.showToast('Oxirgi rasm');
+        }
+    }
+
+    prevCard() {
+        if (state.currentIndex > 0) {
+            state.currentIndex--;
+            this.renderCardStack();
+        } else {
+            this.showToast('Birinchi rasm');
+        }
+    }
+
+    toggleCurrentFavorite() {
+        const item = this.getCurrentProItem();
+        if (!item) return;
+        item.isFavorite = !item.isFavorite;
+        this.updateFavButtonState(item);
+        this.showToast(item.isFavorite ? 'Sevimlilarga qo\'shildi ❤️' : 'Sevimlilardan olib tashlandi');
+    }
+
+    updateFavButtonState(item) {
+        const btn = document.getElementById('btn-slide-fav');
+        const icon = document.getElementById('slide-fav-icon');
+        if (!btn || !icon) return;
+
+        if (item && item.isFavorite) {
+            btn.classList.add('active');
+            icon.className = 'fas fa-heart';
+        } else {
+            btn.classList.remove('active');
+            icon.className = 'far fa-heart';
+        }
+    }
+
+    performUndo() {
+        if (state.undoStack.length === 0) {
+            this.showToast('Bekor qilish uchun harakatlar yo\'q');
+            return;
+        }
+
+        const lastAction = state.undoStack.pop();
+        if (lastAction.type === 'trash') {
+            state.trash = state.trash.filter(id => id !== lastAction.itemId);
+            this.showToast('Savatdan qaytarildi ↶');
+            this.renderCardStack();
+        } else if (lastAction.type === 'album') {
+            const item = state.media.find(m => m.id === lastAction.itemId);
+            if (item) item.folder = lastAction.oldFolder;
+            this.showToast('Albom o\'zgarishi bekor qilindi ↶');
+            this.renderCardStack();
+        }
+    }
+
+    // Slidebox Bottom Quick Album Sorter Tray
+    renderSlideboxTray() {
+        const tray = document.getElementById('album-tray-list');
+        if (!tray) return;
+        tray.innerHTML = '';
+
+        state.userAlbums.forEach(albumName => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-tray-album';
+            btn.innerHTML = `📁 ${albumName}`;
+            btn.addEventListener('click', () => {
+                const item = this.getCurrentProItem();
+                if (item) {
+                    const oldFolder = item.folder;
+                    item.folder = albumName;
+                    state.undoStack.push({ type: 'album', itemId: item.id, oldFolder });
+                    this.showToast(`"${albumName}" albomiga saralandi! ✨`);
+                    this.nextCard();
+                }
+            });
+            tray.appendChild(btn);
+        });
+
+        // Add new album button
+        const addBtn = document.createElement('button');
+        addBtn.className = 'btn-tray-album add-album';
+        addBtn.innerHTML = `➕ Yangi Albom`;
+        addBtn.addEventListener('click', () => {
+            document.getElementById('create-album-modal')?.classList.add('active');
+        });
+        tray.appendChild(addBtn);
+    }
+
+    // Trash Manager
+    updateTrashCounter() {
+        const count = state.trash.length;
+        const headerCount = document.getElementById('trash-header-count');
+        if (headerCount) headerCount.textContent = count;
+
+        document.querySelectorAll('.trash-count').forEach(el => el.textContent = count);
+    }
+
+    openTrashModal() {
+        this.updateTrashCounter();
+        const modal = document.getElementById('trash-modal');
+        const grid = document.getElementById('trash-items-grid');
+        const emptyNotice = document.getElementById('trash-empty-notice');
+        if (!modal || !grid) return;
+
+        grid.innerHTML = '';
+        const trashedItems = state.media.filter(m => state.trash.includes(m.id));
+
+        if (trashedItems.length === 0) {
+            if (emptyNotice) emptyNotice.style.display = 'block';
+        } else {
+            if (emptyNotice) emptyNotice.style.display = 'none';
+            trashedItems.forEach(item => {
+                const thumb = document.createElement('div');
+                thumb.className = 'trash-grid-thumb';
+                thumb.innerHTML = item.type === 'video'
+                    ? `<video src="${item.url}"></video>`
+                    : `<img src="${item.url}">`;
+                grid.appendChild(thumb);
+            });
+        }
+
+        modal.classList.add('active');
+    }
+
+    closeTrashModal() {
+        document.getElementById('trash-modal')?.classList.remove('active');
+    }
+
+    emptyTrash() {
+        if (state.trash.length === 0) return;
+        state.media = state.media.filter(m => !state.trash.includes(m.id));
+        state.trash = [];
+        this.showToast('Savat to\'liq tozalandi! 🗑️');
+        this.closeTrashModal();
+        this.renderCardStack();
+        this.renderKidsGallery();
+    }
+
+    restoreAllTrash() {
+        if (state.trash.length === 0) return;
+        state.trash = [];
+        this.showToast('Barcha fayllar savatdan qaytarildi! ↶');
+        this.closeTrashModal();
+        this.renderCardStack();
+    }
+
+    // Pro Album Filter Dropdown Modal
+    openAlbumFilterModal() {
+        const modal = document.getElementById('album-filter-modal');
+        const list = document.getElementById('album-filter-list');
+        if (!modal || !list) return;
+
+        list.innerHTML = '';
+        const allOptions = ['BARCHA FAYLLAR', ...new Set(state.media.map(m => m.folder)), ...state.userAlbums];
+        const unique = Array.from(new Set(allOptions));
+
+        unique.forEach(opt => {
+            const item = document.createElement('div');
+            item.className = `album-filter-item ${state.selectedProAlbumFilter === opt ? 'active' : ''}`;
+            item.textContent = opt === 'BARCHA FAYLLAR' ? '📁 BARCHA FAYLLAR' : `📁 ${opt}`;
+            item.addEventListener('click', () => {
+                state.selectedProAlbumFilter = opt;
+                const txt = document.getElementById('current-album-filter-text');
+                if (txt) txt.textContent = opt;
+                state.currentIndex = 0;
+                this.closeAlbumFilterModal();
+                this.renderCardStack();
+            });
+            list.appendChild(item);
+        });
+
+        modal.classList.add('active');
+    }
+
+    closeAlbumFilterModal() {
+        document.getElementById('album-filter-modal')?.classList.remove('active');
+    }
+
+    // Biometrics Modal
+    requestBiometricAuth(title, onSuccess) {
         state.pendingAuthAction = onSuccess;
         const modal = document.getElementById('biometric-modal');
         if (modal) modal.classList.add('active');
     }
 
     closeBiometricModal() {
-        const modal = document.getElementById('biometric-modal');
-        if (modal) modal.classList.remove('active');
+        document.getElementById('biometric-modal')?.classList.remove('active');
         state.pendingAuthAction = null;
     }
 
@@ -742,6 +756,7 @@ class PhotoCheckApp {
         }, 300);
     }
 
+    // Mode Switches
     switchToKidsMode() {
         state.isKidsMode = true;
         document.getElementById('kids-header')?.classList.remove('hidden');
@@ -756,8 +771,29 @@ class PhotoCheckApp {
         document.getElementById('kids-header')?.classList.add('hidden');
         document.getElementById('kids-folder-bar')?.classList.add('hidden');
         document.getElementById('pro-header')?.classList.remove('hidden');
-        this.renderSlidebox();
+        this.renderCardStack();
         this.showScreen('sorter');
+    }
+
+    // Donate Screen
+    openDonateScreen() {
+        this.showScreen('donate');
+    }
+
+    closeDonateScreen() {
+        if (state.isKidsMode) {
+            this.showScreen('kids-gallery');
+        } else {
+            this.showScreen('sorter');
+        }
+    }
+
+    copyText(text, label) {
+        navigator.clipboard.writeText(text).then(() => {
+            this.showToast(`${label} nusxalandi! ✅`);
+        }).catch(() => {
+            this.showToast(`${label} nusxalandi! ✅`);
+        });
     }
 
     showScreen(screenName) {
@@ -772,16 +808,23 @@ class PhotoCheckApp {
         }
     }
 
+    resetDemo() {
+        state.trash = [];
+        state.currentIndex = 0;
+        this.showToast('Qayta boshlandi 🔄');
+        this.renderCardStack();
+    }
+
     showToast(msg) {
         const container = document.getElementById('toast-container');
         if (!container) return;
         const toast = document.createElement('div');
-        toast.style.cssText = 'background: rgba(30, 41, 59, 0.95); color: #fff; padding: 10px 18px; border-radius: 12px; margin-top: 8px; font-size: 13px; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.5);';
+        toast.style.cssText = 'background: rgba(22, 28, 44, 0.95); color: #fff; padding: 10px 18px; border-radius: 14px; margin-top: 8px; font-size: 13px; font-weight: 700; border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 4px 16px rgba(0,0,0,0.6);';
         toast.textContent = msg;
         container.appendChild(toast);
         setTimeout(() => toast.remove(), 2500);
     }
 }
 
-// Instantiate
+// Initialize Application
 const app = new PhotoCheckApp();
