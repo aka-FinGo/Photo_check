@@ -374,12 +374,46 @@ class PhotoCheckApp {
             content.innerHTML = `<img src="${item.url}" alt="${item.title}" style="max-width: 100%; max-height: 85vh; object-fit: contain;">`;
         }
 
+        // Double tap or double click to zoom image
+        let currentScale = 1;
+        let lastTap = 0;
+
+        const imgEl = content.querySelector('img');
+        if (imgEl) {
+            imgEl.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)';
+            imgEl.style.transformOrigin = 'center center';
+
+            content.ondblclick = () => {
+                currentScale = currentScale > 1 ? 1 : 2.5;
+                imgEl.style.transform = `scale(${currentScale})`;
+            };
+
+            content.onwheel = (e) => {
+                e.preventDefault();
+                currentScale += e.deltaY * -0.002;
+                currentScale = Math.min(Math.max(1, currentScale), 4);
+                imgEl.style.transform = `scale(${currentScale})`;
+            };
+        }
+
         // Attach Mi Gallery Horizontal Swipe Gestures
         let startX = 0;
         let startY = 0;
         let isSwiping = false;
 
         const handleTouchStart = (e) => {
+            if (e.touches && e.touches.length > 1) return; // ignore pinch here
+            const now = new Date().getTime();
+            const timesince = now - lastTap;
+            if (timesince < 300 && timesince > 0 && imgEl) {
+                // Double tap zoom
+                currentScale = currentScale > 1 ? 1 : 2.5;
+                imgEl.style.transform = `scale(${currentScale})`;
+                lastTap = 0;
+                return;
+            }
+            lastTap = now;
+
             const touch = e.touches ? e.touches[0] : e;
             startX = touch.clientX;
             startY = touch.clientY;
@@ -389,6 +423,8 @@ class PhotoCheckApp {
         const handleTouchEnd = (e) => {
             if (!isSwiping) return;
             isSwiping = false;
+            if (currentScale > 1.1) return; // don't swipe while zoomed in
+
             const touch = e.changedTouches ? e.changedTouches[0] : e;
             const diffX = touch.clientX - startX;
             const diffY = touch.clientY - startY;
