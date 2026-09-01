@@ -1,4 +1,4 @@
-name: Build Android APK (PhotoCheck)
+name: Build & Release PhotoCheck APK
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Build APK
+    name: Build & Release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -25,12 +25,61 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: APK-ni yig'ish (Assemble APK)
+      - name: Dinamik Versiya Raqamini Belgilash (+1.0.XX)
+        id: versioning
+        run: |
+          RUN_NUM="${{ github.run_number }}"
+          # 1 -> 1.0.01, 2 -> 1.0.02, 10 -> 1.0.10, 100 -> 1.0.100
+          VERSION_NAME=$(printf "1.0.%02d" "$RUN_NUM")
+          VERSION_CODE="$RUN_NUM"
+          
+          echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          
+          echo "=========================================="
+          echo "📦 Boshlanmoqda: PhotoCheck v$VERSION_NAME (Code: $VERSION_CODE)"
+          echo "=========================================="
+
+      - name: Release Keystore kalitini tekshirish / yaratish va saqlash
+        run: |
+          mkdir -p android-app/app/keystore
+          if [ ! -f android-app/app/keystore/photocheck.jks ]; then
+            echo "Keystore topilmadi, doimiy photocheck.jks yaratilmoqda va saqlanmoqda..."
+            keytool -genkeypair -v \
+              -keystore android-app/app/keystore/photocheck.jks \
+              -alias photocheck \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass photocheck123 \
+              -keypass photocheck123 \
+              -dname "CN=PhotoCheck, OU=FinGo, O=FinGo, L=Tashkent, ST=Tashkent, C=UZ"
+            
+            # Repozitoriyaga bir umrlik imzo sifatida saqlab qo'yish
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git add android-app/app/keystore/photocheck.jks
+            git commit -m "Persist release signing keystore for continuous in-app updates" || true
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/aka-FinGo/Photo_check.git main || true
+          else
+            echo "Mavjud doimiy photocheck.jks topildi."
+          fi
+
+      - name: Release APK-ni yig'ish (Assemble Release)
         run: |
           cd android-app
           export GRADLE_USER_HOME="$GITHUB_WORKSPACE/.gradle_home"
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --no-daemon > build_log.txt 2>&1 || {
+          ./gradlew assembleRelease \
+            -PversionCode="${{ env.VERSION_CODE }}" \
+            -PversionName="${{ env.VERSION_NAME }}" \
+            -PKEYSTORE_FILE="keystore/photocheck.jks" \
+            -PKEYSTORE_PASSWORD="photocheck123" \
+            -PKEY_ALIAS="photocheck" \
+            -PKEY_PASSWORD="photocheck123" \
+            --stacktrace --no-daemon > build_log.txt 2>&1 || {
             echo "=== BUILD FAILED: PUSHING LOGS TO BRANCH ==="
             git config --global user.name "github-actions[bot]"
             git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -43,21 +92,51 @@ jobs:
             exit 1
           }
 
-      - name: Fayllarni ajratish va nomlash
+      - name: APK faylini ajratish va tayyorlash
         run: |
           mkdir -p dist
-          FOUND_APK=$(find android-app/app/build/outputs/apk -name "*.apk" | head -n 1)
-          echo "Found APK: $FOUND_APK"
+          FOUND_APK=$(find android-app/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -z "$FOUND_APK" ]; then
+            FOUND_APK=$(find android-app/app/build/outputs/apk -name "*.apk" | head -n 1)
+          fi
+          
+          echo "Topilgan APK: $FOUND_APK"
           if [ -n "$FOUND_APK" ]; then
             cp "$FOUND_APK" dist/PhotoCheck.apk
+            cp "$FOUND_APK" "dist/PhotoCheck-v${{ env.VERSION_NAME }}.apk"
+            ls -la dist/
           else
-            echo "No APK generated"
+            echo "Xatolik: Hech qanday APK topilmadi!"
             exit 1
           fi
 
-      - name: 📱 PhotoCheck APK
+      - name: 📱 PhotoCheck APK Artifacts-ga yuklash
         uses: actions/upload-artifact@v4
         with:
-          name: PhotoCheck-APK
+          name: PhotoCheck-v${{ env.VERSION_NAME }}-APK
           path: dist/PhotoCheck.apk
-          retention-days: 7
+          retention-days: 14
+
+      - name: 🚀 GitHub Release va In-App Update uchun nashr qilish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ env.VERSION_NAME }}"
+          name: "PhotoCheck v${{ env.VERSION_NAME }}"
+          body: |
+            ## 📱 PhotoCheck v${{ env.VERSION_NAME }} (Build #${{ env.VERSION_CODE }})
+
+            ### 🚀 Yangilanishlar va Yaxshilanishlar:
+            * **In-App Updater:** Dastur ichidan to'g'ridan-to'g'ri yangilanishlarni qabul qilish va yuklab olish.
+            * **Dinamik Versiyalash:** Avtomatik `1.0.XX` tartibi va xavfsiz reliz imzosi (v1 + v2).
+            * **Bolalar Xavfsiz Galereyasi:** Biometrik qulf, ota-ona nazorati va ekran vaqti taymeri.
+            * **PhotoCheck Pro:** Slidebox aqlli saralash, dublikatlarni tozalash va media siqish.
+
+            ---
+            *Avtomatik tarzda GitHub Actions CI/CD orqali yig'ilgan va imzolangan.*
+          files: |
+            dist/PhotoCheck.apk
+            dist/PhotoCheck-v${{ env.VERSION_NAME }}.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

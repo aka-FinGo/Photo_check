@@ -3,16 +3,47 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+val dynamicVersionCode = (project.findProperty("versionCode") as? String)?.toIntOrNull()
+    ?: (System.getenv("VERSION_CODE")?.toIntOrNull())
+    ?: 1
+
+val dynamicVersionName = (project.findProperty("versionName") as? String)
+    ?: System.getenv("VERSION_NAME")
+    ?: "1.0.01"
+
 android {
     namespace = "com.fingo.photocheck"
     compileSdk = 34
+
+    signingConfigs {
+        create("release") {
+            val keystoreParam = (project.findProperty("KEYSTORE_FILE") as? String)
+                ?: System.getenv("KEYSTORE_FILE")
+                ?: "keystore/photocheck.jks"
+            val keystoreFile = file(keystoreParam).takeIf { it.exists() }
+                ?: file("../$keystoreParam").takeIf { it.exists() }
+                ?: rootProject.file("app/$keystoreParam").takeIf { it.exists() }
+
+            if (keystoreFile != null && keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = (project.findProperty("KEYSTORE_PASSWORD") as? String)
+                    ?: System.getenv("KEYSTORE_PASSWORD") ?: "photocheck123"
+                keyAlias = (project.findProperty("KEY_ALIAS") as? String)
+                    ?: System.getenv("KEY_ALIAS") ?: "photocheck"
+                keyPassword = (project.findProperty("KEY_PASSWORD") as? String)
+                    ?: System.getenv("KEY_PASSWORD") ?: "photocheck123"
+                enableV1Signing = true
+                enableV2Signing = true
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.fingo.photocheck"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = dynamicVersionCode
+        versionName = dynamicVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -36,6 +67,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {

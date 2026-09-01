@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhotoCheck Kids - Xavfsiz Bolalar Galereyasi</title>
+    <title>PhotoCheck - 1:1 Slidebox & Kids Safe Gallery</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -49,14 +49,19 @@
                 </div>
             </header>
 
-            <!-- Classic App Header (Pro mode) -->
+            <!-- 1:1 Slidebox Top Header (Pro mode) -->
             <header class="app-header hidden" id="pro-header">
                 <div class="header-left">
-                    <span class="logo">Photo<span class="logo-accent">Check Pro</span></span>
+                    <div class="album-filter-btn" id="btn-album-filter">
+                        <span id="current-album-filter-text">BARCHA FAYLLAR</span> <i class="fas fa-chevron-down"></i>
+                    </div>
                 </div>
                 <div class="header-right">
+                    <button class="btn-trash-header" id="btn-open-trash" title="Savat">
+                        <i class="fas fa-trash-alt"></i> <span id="trash-header-count">0</span>
+                    </button>
                     <button class="btn-kids-lock" id="btn-lock-to-kids">
-                        <i class="fas fa-lock"></i> Bolalar Rejimi
+                        <i class="fas fa-lock"></i> 👶 Bolalar
                     </button>
                     <button class="btn-icon-gear" id="btn-pro-settings">
                         <i class="fas fa-gear"></i>
@@ -72,7 +77,7 @@
                 <button class="chip" data-folder="Camera">📷 Kamera</button>
             </div>
 
-            <!-- Screen: Kids Gallery (Active Default) -->
+            <!-- Screen 1: Kids Gallery -->
             <div id="screen-kids-gallery" class="app-screen active">
                 <div class="kids-gallery-content">
                     <div class="kids-grid" id="kids-grid">
@@ -81,7 +86,7 @@
                 </div>
             </div>
 
-            <!-- Screen: Kids Sleep Locked Screen (when timer finishes) -->
+            <!-- Screen 2: Kids Sleep Locked Screen -->
             <div id="screen-kids-sleep" class="app-screen hidden">
                 <div class="sleep-content">
                     <div class="moon-icon">🌙</div>
@@ -93,122 +98,72 @@
                 </div>
             </div>
 
-            <!-- Screen: Sorter (Classic Pro) -->
+            <!-- Screen 3: 1:1 SLIDEBOX MAIN CARD SORTER -->
             <div id="screen-sorter" class="app-screen hidden">
-                <div class="gesture-zone" id="gesture-zone">
-                    <div class="card-stack" id="card-stack">
-                        <!-- Dynamic Cards -->
-                    </div>
+                <div class="slidebox-container">
+                    <!-- Card Stack Container -->
+                    <div class="slidebox-card-wrap">
+                        <div class="slidebox-card" id="slidebox-card">
+                            <div class="media-container" id="slidebox-media">
+                                <!-- Dynamic Photo or Video -->
+                            </div>
+                            
+                            <!-- Trash Visual Indicator on Drag Up -->
+                            <div class="trash-overlay-badge" id="trash-overlay-badge">
+                                <i class="fas fa-trash-alt"></i> Savatga tashlash 🗑️
+                            </div>
 
-                    <!-- Swipe Overlays -->
-                    <div class="swipe-overlay swipe-up-overlay">
-                        <div class="overlay-content">
-                            <i class="fas fa-heart animate-heart"></i>
-                            <span>Sevimlilar</span>
+                            <!-- Assigned Album Badge -->
+                            <div class="assigned-album-badge hidden" id="assigned-album-badge">
+                                📁 <span id="assigned-album-name">Ta'til</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="swipe-overlay swipe-down-overlay">
-                        <div class="overlay-content">
-                            <i class="fas fa-trash-alt animate-trash"></i>
-                            <span>O'chirishga</span>
-                        </div>
-                    </div>
-                    <div class="swipe-overlay swipe-left-overlay">
-                        <div class="overlay-content">
-                            <i class="fas fa-arrow-right"></i>
-                            <span>Keyingisi</span>
-                        </div>
-                    </div>
-                    <div class="swipe-overlay swipe-right-overlay">
-                        <div class="overlay-content">
-                            <i class="fas fa-arrow-left"></i>
-                            <span>Oldingisi</span>
-                        </div>
-                    </div>
 
-                    <!-- Empty State -->
-                    <div class="empty-state" id="empty-state">
-                        <div class="empty-icon-wrap">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                        <h2>Hamma rasm va videolar saralandi!</h2>
-                        <p>Barcha fayllar ko'rib chiqildi.</p>
-                        <div class="empty-actions">
-                            <button class="btn btn-primary" onclick="app.showScreen('trash')">
-                                <i class="fas fa-trash-alt"></i> Savatni ko'rish (<span class="trash-count">0</span>)
+                        <!-- Empty State when all sorted -->
+                        <div class="empty-state hidden" id="slidebox-empty-state">
+                            <div class="empty-icon-wrap">🎉</div>
+                            <h2>Barcha rasmlar saralandi!</h2>
+                            <p>Ushbu filtr bo'yicha boshqa yangi media fayllar qolmadi.</p>
+                            <button class="btn btn-primary" id="btn-reset-filter">
+                                Barcha Fayllarga Qaytish 📂
                             </button>
                         </div>
                     </div>
-                </div>
 
-                <!-- Floating Controls for Classic Mode -->
-                <div class="floating-controls">
-                    <button class="btn-float btn-back" id="btn-swipe-left" title="Oldingisi">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <button class="btn-float btn-like" id="btn-swipe-up" title="Sevimlilar">
-                        <i class="fas fa-heart"></i>
-                    </button>
-                    <button class="btn-float btn-delete" id="btn-swipe-down" title="O'chirish">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                    <button class="btn-float btn-next" id="btn-swipe-right" title="Keyingisi">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Screen: Favorites (Pro) -->
-            <div id="screen-favorites" class="app-screen hidden">
-                <div class="screen-content">
-                    <div class="screen-header">
-                        <h2><i class="fas fa-heart"></i> Sevimlilar Ro'yxati</h2>
-                        <p class="subtitle">Saqlab qolingan media fayllar</p>
-                    </div>
-                    <div class="media-grid" id="favorites-grid"></div>
-                </div>
-            </div>
-
-            <!-- Screen: Trash (Pro) -->
-            <div id="screen-trash" class="app-screen hidden">
-                <div class="screen-content">
-                    <div class="screen-header">
-                        <h2><i class="fas fa-trash-alt"></i> Tizim Savatchasi</h2>
-                        <p class="subtitle">O'chirish navbatidagi fayllar</p>
-                    </div>
-                    <div class="trash-summary-card">
-                        <div class="summary-info">
-                            <span class="count-badge"><span class="trash-count">0</span> ta fayl</span>
-                            <span class="size-badge" id="trash-size-info">0 MB joy bo'shaydi</span>
-                        </div>
-                        <button class="btn btn-danger btn-block" id="btn-empty-trash" disabled>
-                            <i class="fas fa-trash-can"></i> Savatni Butunlay Tozalash
+                    <!-- Slidebox Action Toolbar (Undo, Prev, Counter, Next, Favorite, Share) -->
+                    <div class="slidebox-toolbar">
+                        <button class="tool-btn" id="btn-undo" title="Ortga qaytarish" disabled>
+                            <i class="fas fa-arrow-rotate-left"></i>
+                        </button>
+                        <button class="tool-btn" id="btn-prev" title="Oldingi">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <div class="photo-counter" id="photo-counter">1 / 6</div>
+                        <button class="tool-btn" id="btn-next" title="Keyingi">
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                        <button class="tool-btn btn-fav" id="btn-fav" title="Sevimli">
+                            <i class="far fa-heart"></i>
+                        </button>
+                        <button class="tool-btn" id="btn-share" title="Ulashish">
+                            <i class="fas fa-share-nodes"></i>
                         </button>
                     </div>
-                    <div class="media-grid" id="trash-grid"></div>
-                </div>
-            </div>
 
-            <!-- Screen: Analytics (Pro) -->
-            <div id="screen-analytics" class="app-screen hidden">
-                <div class="screen-content">
-                    <div class="screen-header">
-                        <h2><i class="fas fa-chart-pie"></i> Xotira Tahlili</h2>
-                        <p class="subtitle">Real-vaqt xotira statistikasi</p>
-                    </div>
-
-                    <div class="stats-card">
-                        <span class="stats-label">Egallangan Umumiy Xotira</span>
-                        <div class="stats-value" id="stats-total-size">23.8 MB</div>
-                        <div class="progress-bar-wrap">
-                            <div class="progress-bar-fill" id="stats-progress" style="width: 25%;"></div>
+                    <!-- Bottom Quick Album Sorter Tray (Pastki Albomlar Paneli) -->
+                    <div class="quick-album-sorter-tray">
+                        <div class="tray-title">ALBOMLARGA SARALASH (BOSING VA KEYINGISIGA O'TADI)</div>
+                        <div class="album-pills-row" id="album-pills-row">
+                            <button class="album-pill btn-add-album" id="btn-open-add-album">
+                                <i class="fas fa-plus"></i> Yangi Albom
+                            </button>
+                            <!-- Dynamic Album Pills -->
                         </div>
-                        <div class="stats-subtext" id="stats-trash-saving">O'chirish navbatidagi joy: 0 MB</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Screen: Parent Settings Dashboard -->
+            <!-- Screen 4: Parent Settings Dashboard -->
             <div id="screen-parent-settings" class="app-screen hidden">
                 <div class="parent-settings-content">
                     <div class="parent-header">
@@ -218,6 +173,7 @@
                         <h2>🛡️ Ota-ona Sozlamalari</h2>
                     </div>
 
+                    <!-- Kids Mode Switch -->
                     <div class="setting-card">
                         <div class="setting-row">
                             <div>
@@ -231,14 +187,16 @@
                         </div>
                     </div>
 
+                    <!-- Launch Slidebox Pro -->
                     <div class="setting-card">
-                        <h3>🚀 PhotoCheck Pro (Klassik)</h3>
-                        <p>Slidebox saralash, Dublikatlar va Siqish dashboardi.</p>
+                        <h3>🚀 Slidebox Pro Rejimi</h3>
+                        <p>Tepaga surish orqali saralash va tezkor albomlar paneli.</p>
                         <button class="btn btn-pro-launch" id="btn-launch-pro">
-                            Pro Rejimiga O'tish
+                            Slidebox Pro Rejimiga O'tish
                         </button>
                     </div>
 
+                    <!-- Screen Time Limit -->
                     <div class="setting-card">
                         <div class="setting-row">
                             <h3>⏳ Ekran Vaqti Taymeri</h3>
@@ -253,62 +211,78 @@
                         </div>
                     </div>
 
+                    <!-- Whitelisted Folders with Bulk Actions -->
                     <div class="setting-card">
-                        <h3>📁 Ruxsat Berilgan Albomlar</h3>
-                        <p>Bolaga faqat tanlangan albomlar ko'rinadi:</p>
-                        <div class="album-checklist">
-                            <label class="checkbox-item">
-                                <input type="checkbox" checked value="Cartoons"> 🎬 Multfilmlar (8 fayl)
-                            </label>
-                            <label class="checkbox-item">
-                                <input type="checkbox" checked value="Animals"> 🐱 Hayvonlar (5 fayl)
-                            </label>
-                            <label class="checkbox-item">
-                                <input type="checkbox" checked value="Camera"> 📷 Kamera (12 fayl)
-                            </label>
-                            <label class="checkbox-item">
-                                <input type="checkbox" value="WhatsApp"> 💬 WhatsApp (Yopiq)
-                            </label>
-                            <label class="checkbox-item">
-                                <input type="checkbox" value="Screenshots"> 📸 Screenshots (Yopiq)
-                            </label>
+                        <div class="setting-row" style="margin-bottom: 10px;">
+                            <div>
+                                <h3>📁 Ruxsat Berilgan Albomlar</h3>
+                                <p>Bolaga faqat tanlangan albomlar ko'rinadi:</p>
+                            </div>
+                            <div class="bulk-btns">
+                                <button class="btn-bulk" id="btn-select-all-albums">Barchasi</button>
+                                <button class="btn-bulk btn-bulk-danger" id="btn-clear-all-albums">Bekor qilish</button>
+                            </div>
                         </div>
+                        <div class="album-checklist" id="parent-album-checklist">
+                            <!-- Dynamic Checkbox list -->
+                        </div>
+                    </div>
+
+                    <!-- In-App Updater Card -->
+                    <div class="setting-card">
+                        <div class="setting-row">
+                            <div>
+                                <h3>🔄 Dastur Yangilanishi</h3>
+                                <p>Joriy versiya: v1.0.01</p>
+                            </div>
+                            <span class="badge" style="background:#0284C7;">v1.0.01</span>
+                        </div>
+                        <button class="btn btn-outline btn-block" style="margin-top:10px;" id="btn-check-update">
+                            <i class="fas fa-rotate"></i> Yangilanishlarni Tekshirish
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Pro Bottom Navigation Bar -->
-            <nav class="bottom-nav hidden" id="pro-bottom-nav">
-                <button class="nav-item active" data-screen="sorter">
-                    <i class="fas fa-photo-film"></i>
-                    <span>Saralash</span>
-                </button>
-                <button class="nav-item" data-screen="favorites">
-                    <i class="fas fa-heart"></i>
-                    <span>Sevimlilar</span>
-                    <span class="badge" id="fav-badge">0</span>
-                </button>
-                <button class="nav-item" data-screen="trash">
-                    <i class="fas fa-trash-alt"></i>
-                    <span>Savat</span>
-                    <span class="badge badge-danger" id="trash-badge">0</span>
-                </button>
-                <button class="nav-item" data-screen="analytics">
-                    <i class="fas fa-chart-pie"></i>
-                    <span>Tahlil</span>
-                </button>
-            </nav>
-
         </div>
     </div>
 
-    <!-- Kids Fullscreen Media Viewer Modal -->
-    <div class="kids-viewer-modal" id="kids-viewer-modal">
-        <button class="kids-viewer-close" id="kids-viewer-close"><i class="fas fa-arrow-left"></i></button>
-        <div class="kids-viewer-content" id="kids-viewer-content"></div>
-        <div class="kids-viewer-controls">
-            <button class="btn-kid-nav btn-kid-prev" id="btn-kid-prev"><i class="fas fa-arrow-left"></i> Oldingi</button>
-            <button class="btn-kid-nav btn-kid-next" id="btn-kid-next">Keyingi <i class="fas fa-arrow-right"></i></button>
+    <!-- Trash Management Modal -->
+    <div class="modal-overlay" id="trash-modal">
+        <div class="modal-card trash-card">
+            <div class="modal-header">
+                <div>
+                    <h3>🗑️ Savat Boshqaruvi</h3>
+                    <p class="subtitle" id="trash-modal-subtitle">0 ta fayl (0.0 MB)</p>
+                </div>
+                <button class="btn-link" id="btn-restore-all">Barchasini Tiklash ↶</button>
+            </div>
+            <div class="trash-grid" id="trash-modal-grid">
+                <!-- Trashed photo cards -->
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" id="btn-close-trash">Yopish</button>
+                <button class="btn btn-danger" id="btn-delete-all-perm">
+                    <i class="fas fa-trash-can"></i> Barchasini O'chirish
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Album Prompt Modal -->
+    <div class="modal-overlay" id="new-album-modal">
+        <div class="modal-card prompt-card">
+            <div class="modal-header">
+                <h3>📁 Yangi Albom Yaratish</h3>
+            </div>
+            <div class="modal-body">
+                <p>Albom nomini kiriting:</p>
+                <input type="text" id="new-album-input" placeholder="Masalan: Ta'til 2026, Oila" class="modal-input">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" id="btn-cancel-album">Bekor qilish</button>
+                <button class="btn btn-primary" id="btn-save-album">Yaratish</button>
+            </div>
         </div>
     </div>
 

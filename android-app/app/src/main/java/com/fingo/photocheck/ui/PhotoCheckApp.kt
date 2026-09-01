@@ -1,10 +1,13 @@
 package com.fingo.photocheck.ui
 
 import android.content.Intent
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,31 +28,32 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.fingo.photocheck.data.KidsPreferencesManager
 import com.fingo.photocheck.model.MediaItem
 import com.fingo.photocheck.model.MediaType
+import com.fingo.photocheck.ui.kids.KidsSafeGalleryScreen
+import com.fingo.photocheck.ui.parent.ParentSettingsScreen
+import com.fingo.photocheck.update.UpdateDialog
+import com.fingo.photocheck.update.UpdateInfo
+import com.fingo.photocheck.update.UpdateManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-import com.fingo.photocheck.data.KidsPreferencesManager
-import com.fingo.photocheck.ui.kids.KidsSafeGalleryScreen
-import com.fingo.photocheck.ui.parent.ParentSettingsScreen
-
-enum class UzbekCategory(val displayName: String, val color: Color) {
-    TATIL("TA'TIL", Color(0xFFA0E0FF)),
-    TABIAT("TABIAT", Color(0xFFB8F0D0)),
-    OILA("OILA", Color(0xFFFFD0D8)),
-    DOSTLAR("DO'STLAR", Color(0xFFFFE0B0));
+// Undo Action Model for 1:1 Slidebox experience
+sealed interface SlideboxAction {
+    data class Trashed(val item: MediaItem, val previousIndex: Int) : SlideboxAction
+    data class AlbumSorted(val item: MediaItem, val albumName: String, val previousIndex: Int) : SlideboxAction
+    data class Favorited(val item: MediaItem, val previousState: Boolean) : SlideboxAction
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,7 +76,20 @@ fun PhotoCheckApp(
     var showParentSettings by remember { mutableStateOf(false) }
     var isClassicModeActive by remember { mutableStateOf(!kidsPrefs.isKidsMode) }
 
-    // Live timer countdown
+    // In-App Update State
+    var availableUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val result = UpdateManager.checkForUpdates(context)
+        result.onSuccess { info ->
+            if (info.hasUpdate) {
+                availableUpdate = info
+            }
+        }
+    }
+
+    // Live timer countdown for Kids Mode
     LaunchedEffect(isKidsMode, isClassicModeActive, timerLimitMinutes) {
         if (isKidsMode && !isClassicModeActive && timerLimitMinutes > 0) {
             remainingSeconds = timerLimitMinutes * 60L
@@ -87,22 +104,27 @@ fun PhotoCheckApp(
         }
     }
 
-    var activeTab by remember { mutableIntStateOf(0) }
+    // --- 1:1 SLIDEBOX STATE ---
     val favorites = remember { mutableStateListOf<Long>() }
     val trash = remember { mutableStateListOf<Long>() }
+    val customAlbums = remember { mutableStateListOf<String>() }
+    val photoAlbumAssignments = remember { mutableStateMapOf<Long, String>() }
+    val historyStack = remember { mutableStateListOf<SlideboxAction>() }
 
     var currentIndex by remember { mutableIntStateOf(0) }
-    
-    // Dynamically extract real albums present on the user's device!
-    val realAlbums = remember(mediaList) {
-        val albums = mediaList.map { it.bucketName }.filter { it.isNotBlank() }.distinct().sorted()
-        if (albums.isEmpty()) listOf("BARCHA FAYLLAR") else listOf("BARCHA FAYLLAR") + albums
-    }
-
     var selectedFilter by remember { mutableStateOf("BARCHA FAYLLAR") }
     var showDropdownMenu by remember { mutableStateOf(false) }
-    var showAlbumBottomSheet by remember { mutableStateOf(false) }
-    var isCompressing by remember { mutableStateOf(false) }
+    var showTrashSheet by remember { mutableStateOf(false) }
+    var showGridView by remember { mutableStateOf(false) }
+    var showNewAlbumDialog by remember { mutableStateOf(false) }
+    var newAlbumNameInput by remember { mutableStateOf("") }
+
+    // Real device albums + custom created albums
+    val allAlbumsList = remember(mediaList, customAlbums) {
+        val deviceAlbums = mediaList.map { it.bucketName }.filter { it.isNotBlank() }.distinct()
+        val combined = (deviceAlbums + customAlbums).distinct().sorted()
+        if (combined.isEmpty()) listOf("BARCHA FAYLLAR") else listOf("BARCHA FAYLLAR") + combined
+    }
 
     val activeList = remember(mediaList, trash, selectedFilter) {
         mediaList.filter { item ->
@@ -110,7 +132,8 @@ fun PhotoCheckApp(
             val matchFilter = if (selectedFilter == "BARCHA FAYLLAR") {
                 true
             } else {
-                item.bucketName.equals(selectedFilter, ignoreCase = true)
+                item.bucketName.equals(selectedFilter, ignoreCase = true) ||
+                        photoAlbumAssignments[item.id].equals(selectedFilter, ignoreCase = true)
             }
             notInTrash && matchFilter
         }
@@ -120,14 +143,17 @@ fun PhotoCheckApp(
         mediaList.filter { it.id in trash }
     }
 
-    val favoriteItems = remember(mediaList, favorites) {
-        mediaList.filter { it.id in favorites }
-    }
-
     val currentItem = if (activeList.isNotEmpty()) {
         val safeIndex = currentIndex.coerceIn(0, activeList.size - 1)
         activeList[safeIndex]
     } else null
+
+    // Safe index adjustment when list shrinks
+    LaunchedEffect(activeList.size) {
+        if (activeList.isNotEmpty() && currentIndex >= activeList.size) {
+            currentIndex = activeList.size - 1
+        }
+    }
 
     if (showParentSettings) {
         ParentSettingsScreen(
@@ -145,7 +171,7 @@ fun PhotoCheckApp(
                 whitelistedAlbums = kidsPrefs.whitelistedAlbums
             },
             onSelectAllAlbums = {
-                val all = mediaList.map { it.bucketName }.distinct()
+                val all = mediaList.map { it.bucketName }.filter { it.isNotBlank() }.distinct()
                 kidsPrefs.setAllAlbums(all)
                 whitelistedAlbums = kidsPrefs.whitelistedAlbums
             },
@@ -191,34 +217,122 @@ fun PhotoCheckApp(
             }
         )
     } else {
-        // 🛡️ CLASSIC PHOTOCHECK PRO DASHBOARD
+        // 🚀 1:1 ORIGINAL SLIDEBOX PRO EXPERIENCE
         Scaffold(
             containerColor = Color(0xFF090A0F),
             topBar = {
-                // Top floating banner to lock back to Kids mode
                 Surface(
-                    color = Color(0xFF1E1B4B),
+                    color = Color(0xFF111420),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("🛡️", fontSize = 16.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                "PhotoCheck Pro (Admin)",
-                                color = Color.White,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                        // Left: Real Album Filter Dropdown
+                        Box {
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0xFF1E2330))
+                                    .clickable { showDropdownMenu = true }
+                                    .padding(horizontal = 12.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (showGridView) "Galereya Ko'rinishi 🔲" else "$selectedFilter ▼",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = showDropdownMenu,
+                                onDismissRequest = { showDropdownMenu = false },
+                                modifier = Modifier
+                                    .background(Color(0xFF1E2330))
+                                    .border(1.dp, Color(0xFF374151), RoundedCornerShape(12.dp))
+                            ) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            if (showGridView) "Slidebox Sorter Rejimiga O'tish 🎴" else "Barcha Rasmlar Galereyasi 🔲",
+                                            color = Color(0xFF38BDF8),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    },
+                                    onClick = {
+                                        showGridView = !showGridView
+                                        showDropdownMenu = false
+                                    }
+                                )
+                                HorizontalDivider(color = Color(0xFF374151))
+                                allAlbumsList.forEach { albumName ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                albumName,
+                                                color = if (selectedFilter == albumName) Color(0xFF38BDF8) else Color.White,
+                                                fontWeight = if (selectedFilter == albumName) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        },
+                                        onClick = {
+                                            selectedFilter = albumName
+                                            showGridView = false
+                                            showDropdownMenu = false
+                                            currentIndex = 0
+                                        }
+                                    )
+                                }
+                            }
                         }
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Right: Trash counter, Kids Lock & Settings
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (availableUpdate?.hasUpdate == true) {
+                                Button(
+                                    onClick = { showUpdateDialog = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                    shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text("Yangilash 🚀", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            // 🗑️ Top Bar Trash Counter (Tap to view and manage trash)
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(if (trashedItems.isNotEmpty()) Color(0xFF7F1D1D) else Color(0xFF1E2330))
+                                    .clickable { showTrashSheet = true }
+                                    .padding(horizontal = 10.dp, vertical = 7.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Savat",
+                                        tint = if (trashedItems.isNotEmpty()) Color(0xFFFCA5A5) else Color.Gray,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "${trashedItems.size}",
+                                        color = if (trashedItems.isNotEmpty()) Color.White else Color.Gray,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            // Switch to Kids Mode
                             Button(
                                 onClick = {
                                     isKidsMode = true
@@ -226,77 +340,20 @@ fun PhotoCheckApp(
                                     isClassicModeActive = false
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
-                                shape = RoundedCornerShape(14.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                             ) {
-                                Text("Bolalar Rejimi 👶", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("👶 Bolalar", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
 
                             IconButton(
                                 onClick = { showParentSettings = true },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(34.dp)
                             ) {
                                 Icon(Icons.Default.Settings, contentDescription = "Sozlamalar", tint = Color.White)
                             }
                         }
                     }
-                }
-            },
-            bottomBar = {
-                NavigationBar(
-                    containerColor = Color(0xFF10121A).copy(alpha = 0.95f),
-                    contentColor = Color.White
-                ) {
-                    NavigationBarItem(
-                        selected = activeTab == 0,
-                        onClick = { activeTab = 0 },
-                        icon = { Icon(Icons.Default.Home, contentDescription = "Asosiy") },
-                        label = { Text("Asosiy", fontSize = 10.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFF38BDF8),
-                            indicatorColor = Color(0xFF1E293B)
-                        )
-                    )
-                    NavigationBarItem(
-                        selected = activeTab == 1,
-                        onClick = { activeTab = 1 },
-                        icon = { Icon(Icons.Default.List, contentDescription = "Galereya") },
-                        label = { Text("Galereya", fontSize = 10.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFF38BDF8),
-                            indicatorColor = Color(0xFF1E293B)
-                        )
-                    )
-                    NavigationBarItem(
-                        selected = activeTab == 2,
-                        onClick = { activeTab = 2 },
-                        icon = { Icon(Icons.Default.Refresh, contentDescription = "Dublikatlar") },
-                        label = { Text("Dublikatlar", fontSize = 10.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFF38BDF8),
-                            indicatorColor = Color(0xFF1E293B)
-                        )
-                    )
-                    NavigationBarItem(
-                        selected = activeTab == 3,
-                        onClick = { activeTab = 3 },
-                        icon = { Icon(Icons.Default.Build, contentDescription = "Siqish") },
-                        label = { Text("Siqish", fontSize = 10.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFF38BDF8),
-                            indicatorColor = Color(0xFF1E293B)
-                        )
-                    )
-                    NavigationBarItem(
-                        selected = activeTab == 4,
-                        onClick = { activeTab = 4 },
-                        icon = { Icon(Icons.Default.PlayArrow, contentDescription = "Tahlil") },
-                        label = { Text("Tahlil", fontSize = 10.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFF38BDF8),
-                            indicatorColor = Color(0xFF1E293B)
-                        )
-                    )
                 }
             }
         ) { padding ->
@@ -306,204 +363,242 @@ fun PhotoCheckApp(
                     .padding(padding)
                     .background(Color(0xFF090A0F))
             ) {
-                when (activeTab) {
-                    0 -> {
-                        // Ref 1: Fullscreen Media Viewer
-                        if (currentItem != null) {
-                            SlideboxViewerScreen(
-                                item = currentItem,
-                                totalCount = activeList.size,
-                                currentIndex = currentIndex,
-                                trashedCount = trashedItems.size,
-                                selectedFilter = selectedFilter,
-                                onFilterClick = { showDropdownMenu = true },
-                                onTrash = {
-                                    trash.add(currentItem.id)
-                                },
-                                onUndo = {
-                                    if (trash.isNotEmpty()) {
-                                        trash.removeAt(trash.size - 1)
+                if (showGridView) {
+                    // Optional Grid View Mode
+                    SlideboxGridView(
+                        mediaList = activeList,
+                        onItemClick = { item ->
+                            currentIndex = activeList.indexOf(item).coerceAtLeast(0)
+                            showGridView = false
+                        }
+                    )
+                } else if (currentItem != null) {
+                    // 1:1 SLIDEBOX SORTER
+                    SlideboxCardSorterScreen(
+                        item = currentItem,
+                        currentIndex = currentIndex,
+                        totalCount = activeList.size,
+                        trashedCount = trashedItems.size,
+                        isFavorite = currentItem.id in favorites,
+                        canUndo = historyStack.isNotEmpty(),
+                        assignedAlbum = photoAlbumAssignments[currentItem.id],
+                        allAlbums = allAlbumsList.filter { it != "BARCHA FAYLLAR" },
+                        onTrash = {
+                            trash.add(currentItem.id)
+                            historyStack.add(SlideboxAction.Trashed(currentItem, currentIndex))
+                        },
+                        onToggleFavorite = {
+                            val wasFav = currentItem.id in favorites
+                            if (wasFav) {
+                                favorites.remove(currentItem.id)
+                            } else {
+                                favorites.add(currentItem.id)
+                            }
+                            historyStack.add(SlideboxAction.Favorited(currentItem, wasFav))
+                        },
+                        onUndo = {
+                            if (historyStack.isNotEmpty()) {
+                                when (val lastAction = historyStack.removeAt(historyStack.size - 1)) {
+                                    is SlideboxAction.Trashed -> {
+                                        trash.remove(lastAction.item.id)
+                                        currentIndex = lastAction.previousIndex.coerceIn(0, activeList.size)
+                                        Toast.makeText(context, "Savatdan qaytarildi ↶", Toast.LENGTH_SHORT).show()
                                     }
-                                },
-                                onNext = {
-                                    if (currentIndex < activeList.size - 1) {
-                                        currentIndex++
+                                    is SlideboxAction.AlbumSorted -> {
+                                        photoAlbumAssignments.remove(lastAction.item.id)
+                                        currentIndex = lastAction.previousIndex.coerceIn(0, activeList.size)
+                                        Toast.makeText(context, "Albom saralash bekor qilindi ↶", Toast.LENGTH_SHORT).show()
                                     }
-                                },
-                                onPrevious = {
-                                    if (currentIndex > 0) {
-                                        currentIndex--
+                                    is SlideboxAction.Favorited -> {
+                                        if (lastAction.previousState) {
+                                            favorites.add(lastAction.item.id)
+                                        } else {
+                                            favorites.remove(lastAction.item.id)
+                                        }
                                     }
-                                },
-                                onShare = {
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = if (currentItem.mediaType == MediaType.VIDEO) "video/*" else "image/*"
-                                        putExtra(Intent.EXTRA_STREAM, currentItem.uri)
-                                    }
-                                    context.startActivity(Intent.createChooser(shareIntent, "Ulashish"))
                                 }
+                            }
+                        },
+                        onNext = {
+                            if (currentIndex < activeList.size - 1) {
+                                currentIndex++
+                            }
+                        },
+                        onPrevious = {
+                            if (currentIndex > 0) {
+                                currentIndex--
+                            }
+                        },
+                        onSortToAlbum = { albumName ->
+                            photoAlbumAssignments[currentItem.id] = albumName
+                            historyStack.add(SlideboxAction.AlbumSorted(currentItem, albumName, currentIndex))
+                            Toast.makeText(context, "\"$albumName\" albomiga qo'shildi! 📁", Toast.LENGTH_SHORT).show()
+                            if (currentIndex < activeList.size - 1) {
+                                currentIndex++
+                            }
+                        },
+                        onAddNewAlbum = {
+                            showNewAlbumDialog = true
+                        },
+                        onShare = {
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = if (currentItem.mediaType == MediaType.VIDEO) "video/*" else "image/*"
+                                putExtra(Intent.EXTRA_STREAM, currentItem.uri)
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Ulashish"))
+                        }
+                    )
+                } else {
+                    // Empty Sorter state (All files organized!)
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(24.dp)
+                        ) {
+                            Text("🎉", fontSize = 64.sp)
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Text(
+                                "Barcha rasmlar saralandi!",
+                                color = Color.White,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold
                             )
-                        } else {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(64.dp))
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Text("Barcha fayllar saralandi!", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Ushbu filtr bo'yicha boshqa yangi media fayllar qolmadi.",
+                                color = Color.Gray,
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            if (selectedFilter != "BARCHA FAYLLAR") {
+                                Button(
+                                    onClick = { selectedFilter = "BARCHA FAYLLAR"; currentIndex = 0 },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF38BDF8)),
+                                    shape = RoundedCornerShape(14.dp)
+                                ) {
+                                    Text("Barcha Fayllarga Qaytish 📂", color = Color.Black, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
-                    }
-                    1 -> {
-                        // Ref 3: PhotoCheck Gallery Grid with Real Device Albums
-                        GalleryScreen(
-                            mediaList = activeList,
-                            realAlbums = realAlbums,
-                            selectedFilter = selectedFilter,
-                            showDropdownMenu = showDropdownMenu,
-                            onFilterSelect = { filter ->
-                                selectedFilter = filter
-                                showDropdownMenu = false
-                            },
-                            onToggleDropdown = { showDropdownMenu = !showDropdownMenu },
-                            onItemClick = { item ->
-                                currentIndex = activeList.indexOf(item)
-                                activeTab = 0
-                            },
-                            onOpenActionSheet = { showAlbumBottomSheet = true }
-                        )
-                    }
-                    2 -> {
-                        // Dublikatlar Screen (czkawka engine)
-                        val duplicateGroups = remember(mediaList) {
-                            mediaList.groupBy { "${it.size / 1024}_${it.displayName.take(5)}" }
-                                .filter { it.value.size > 1 }
-                                .values.toList()
-                        }
-                        DuplicatesScreen(
-                            duplicateGroups = duplicateGroups,
-                            onDeleteDuplicates = { items ->
-                                items.forEach { trash.add(it.id) }
-                            }
-                        )
-                    }
-                    3 -> {
-                        // Media Compressor Screen (open_squeezer engine)
-                        CompressorScreen(
-                            mediaList = activeList,
-                            isCompressing = isCompressing,
-                            onCompressAll = {
-                                scope.launch {
-                                    isCompressing = true
-                                    delay(1500)
-                                    isCompressing = false
-                                }
-                            }
-                        )
-                    }
-                    4 -> {
-                        // Tahlil Dashboard
-                        TahlilDashboardScreen(
-                            mediaList = mediaList,
-                            trashedItems = trashedItems,
-                            favoriteItems = favoriteItems,
-                            onEmptyTrash = {
-                                onDeleteMediaItems(trashedItems)
-                            }
-                        )
                     }
                 }
 
-                // Ref 3: Uzbek Bottom Album Action Sheet
-                if (showAlbumBottomSheet) {
-                    ModalBottomSheet(
-                        onDismissRequest = { showAlbumBottomSheet = false },
-                        containerColor = Color(0xFF141722)
-                    ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            Text("ALBOM AMALLARI", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                // 🗑️ Trash Management Bottom Sheet
+                if (showTrashSheet) {
+                    TrashManagementSheet(
+                        trashedItems = trashedItems,
+                        onDismiss = { showTrashSheet = false },
+                        onRestoreItem = { item ->
+                            trash.remove(item.id)
+                        },
+                        onRestoreAll = {
+                            trash.clear()
+                            showTrashSheet = false
+                            Toast.makeText(context, "Barcha rasmlar tiklandi! 🔄", Toast.LENGTH_SHORT).show()
+                        },
+                        onDeletePermanently = {
+                            onDeleteMediaItems(trashedItems)
+                            trash.clear()
+                            showTrashSheet = false
+                        }
+                    )
+                }
+
+                // 📁 New Album Dialog
+                if (showNewAlbumDialog) {
+                    AlertDialog(
+                        onDismissRequest = {
+                            showNewAlbumDialog = false
+                            newAlbumNameInput = ""
+                        },
+                        containerColor = Color(0xFF1E2330),
+                        title = { Text("Yangi Albom Yaratish 📁", color = Color.White, fontWeight = FontWeight.Bold) },
+                        text = {
+                            Column {
+                                Text("Albom nomini kiriting:", color = Color.LightGray, fontSize = 13.sp)
+                                Spacer(modifier = Modifier.height(10.dp))
+                                OutlinedTextField(
+                                    value = newAlbumNameInput,
+                                    onValueChange = { newAlbumNameInput = it },
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
+                                        focusedBorderColor = Color(0xFF38BDF8),
+                                        unfocusedBorderColor = Color.Gray
+                                    ),
+                                    placeholder = { Text("Masalan: Ta'til 2026, Oila", color = Color.Gray) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    val trimmed = newAlbumNameInput.trim()
+                                    if (trimmed.isNotBlank()) {
+                                        if (!customAlbums.contains(trimmed)) {
+                                            customAlbums.add(trimmed)
+                                        }
+                                        if (currentItem != null) {
+                                            photoAlbumAssignments[currentItem.id] = trimmed
+                                            historyStack.add(SlideboxAction.AlbumSorted(currentItem, trimmed, currentIndex))
+                                            Toast.makeText(context, "\"$trimmed\" albomi yaratildi va rasm qo'shildi! 📁", Toast.LENGTH_SHORT).show()
+                                            if (currentIndex < activeList.size - 1) {
+                                                currentIndex++
+                                            }
+                                        }
+                                    }
+                                    showNewAlbumDialog = false
+                                    newAlbumNameInput = ""
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF38BDF8))
                             ) {
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1B4332)),
-                                    shape = RoundedCornerShape(18.dp),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(110.dp)
-                                        .clickable { showAlbumBottomSheet = false }
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .padding(12.dp)
-                                            .fillMaxSize(),
-                                        verticalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF2EC4B6), modifier = Modifier.size(28.dp))
-                                        Text("Yangi albom yaratish", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1D3557)),
-                                    shape = RoundedCornerShape(18.dp),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(110.dp)
-                                        .clickable { showAlbumBottomSheet = false }
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .padding(12.dp)
-                                            .fillMaxSize(),
-                                        verticalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFF48CAE4), modifier = Modifier.size(28.dp))
-                                        Text("Saralanganlar", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF4A154B)),
-                                    shape = RoundedCornerShape(18.dp),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(110.dp)
-                                        .clickable { showAlbumBottomSheet = false }
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .padding(12.dp)
-                                            .fillMaxSize(),
-                                        verticalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFE0AAFF), modifier = Modifier.size(28.dp))
-                                        Text("Ta'til 2024", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
+                                Text("Yaratish", color = Color.Black, fontWeight = FontWeight.Bold)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = {
+                                showNewAlbumDialog = false
+                                newAlbumNameInput = ""
+                            }) {
+                                Text("Bekor qilish", color = Color.Gray)
                             }
                         }
-                    }
+                    )
+                }
+
+                // In-App Update Dialog
+                if (showUpdateDialog && availableUpdate != null) {
+                    UpdateDialog(
+                        updateInfo = availableUpdate!!,
+                        onDismiss = { showUpdateDialog = false }
+                    )
                 }
             }
         }
     }
 }
 
-// 1. Ref 1: Slidebox Viewer with Uzbek Labels & Swipe Up to Trash
+// 🎴 1:1 SLIDEBOX MAIN CARD SORTER SCREEN
 @Composable
-fun SlideboxViewerScreen(
+fun SlideboxCardSorterScreen(
     item: MediaItem,
-    totalCount: Int,
     currentIndex: Int,
+    totalCount: Int,
     trashedCount: Int,
-    selectedFilter: String,
-    onFilterClick: () -> Unit,
+    isFavorite: Boolean,
+    canUndo: Boolean,
+    assignedAlbum: String?,
+    allAlbums: List<String>,
     onTrash: () -> Unit,
+    onToggleFavorite: () -> Unit,
     onUndo: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
+    onSortToAlbum: (String) -> Unit,
+    onAddNewAlbum: () -> Unit,
     onShare: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -511,68 +606,35 @@ fun SlideboxViewerScreen(
     val offsetY = remember { Animatable(0f) }
     val scale = remember { Animatable(1f) }
 
-    val isDraggingUp = offsetY.value < -50f
+    val isDraggingUp = offsetY.value < -40f
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(vertical = 12.dp)
+            .padding(bottom = 8.dp)
     ) {
-        // Ref 1 Top Header: Real Album Name Dropdown + Free Storage Pill
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF1A1D26))
-                    .clickable { onFilterClick() }
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("$selectedFilter ▼", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF1E2330))
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("2.4 GB bo'sh", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Ref 1 Card Stack Container
+        // Main Interactive Card Stack
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 14.dp, vertical = 6.dp)
         ) {
+            // Background shadow card
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 12.dp).padding(top = 12.dp)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(Color(0xFF161922))
+                    .padding(horizontal = 10.dp)
+                    .padding(top = 10.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color(0xFF141722))
             )
 
+            // Foreground Active Swipable Card
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(28.dp))
+                    .clip(RoundedCornerShape(24.dp))
                     .background(Color.Black)
                     .graphicsLayer {
                         translationX = offsetX.value
@@ -583,9 +645,10 @@ fun SlideboxViewerScreen(
                     .pointerInput(item.id) {
                         detectDragGestures(
                             onDragEnd = {
-                                if (offsetY.value < -70f || (offsetY.value < -40f && offsetX.value > 40f)) {
+                                if (offsetY.value < -70f) {
+                                    // 👆 SWIPE UP TO TRASH
                                     scope.launch {
-                                        offsetY.animateTo(-700f, spring())
+                                        offsetY.animateTo(-900f, spring())
                                         scale.animateTo(0.2f, spring())
                                         onTrash()
                                         offsetX.snapTo(0f)
@@ -593,20 +656,23 @@ fun SlideboxViewerScreen(
                                         scale.snapTo(1f)
                                     }
                                 } else if (offsetX.value > 120f) {
+                                    // 👉 SWIPE RIGHT (PREVIOUS)
                                     scope.launch {
-                                        offsetX.animateTo(600f, tween(150))
+                                        offsetX.animateTo(600f, tween(140))
                                         onPrevious()
                                         offsetX.snapTo(0f)
                                         offsetY.snapTo(0f)
                                     }
                                 } else if (offsetX.value < -120f) {
+                                    // 👈 SWIPE LEFT (NEXT)
                                     scope.launch {
-                                        offsetX.animateTo(-600f, tween(150))
+                                        offsetX.animateTo(-600f, tween(140))
                                         onNext()
                                         offsetX.snapTo(0f)
                                         offsetY.snapTo(0f)
                                     }
                                 } else {
+                                    // Release back to center
                                     scope.launch {
                                         offsetX.animateTo(0f, spring())
                                         offsetY.animateTo(0f, spring())
@@ -628,519 +694,418 @@ fun SlideboxViewerScreen(
                         )
                     }
             ) {
+                // Media preview
                 AsyncImage(
                     model = item.uri,
                     contentDescription = item.displayName,
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Ref 1: Glassmorphic Trash Icon with Cyan Badge
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(16.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
-                        .padding(12.dp)
+                // Trash overlay badge on drag up
+                AnimatedVisibility(
+                    visible = isDraggingUp,
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 24.dp),
+                    enter = fadeIn(),
+                    exit = fadeOut()
                 ) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "Savat",
-                        tint = if (isDraggingUp) Color(0xFFEF4444) else Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
-                    if (trashedCount > 0) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = 6.dp, y = (-6).dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF38BDF8))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text("+$trashedCount", color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0xFFEF4444).copy(alpha = 0.9f))
+                            .padding(horizontal = 18.dp, vertical = 8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Savatga tashlash 🗑️", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                    }
+                }
+
+                // Assigned Album Tag badge (if tagged)
+                if (assignedAlbum != null) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(14.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF0284C7).copy(alpha = 0.85f))
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text("📁 $assignedAlbum", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                // Video duration badge
+                if (item.mediaType == MediaType.VIDEO) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(14.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.Black.copy(alpha = 0.7f))
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color(0xFFFDE047), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(item.formattedDuration.ifEmpty { "Video" }, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Ref 1: Paging Dots
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .width(28.dp)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(Color.White)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color.Gray))
-            Spacer(modifier = Modifier.width(6.dp))
-            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color.Gray))
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Uzbek Category Pills
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(UzbekCategory.values()) { cat ->
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(cat.color)
-                        .clickable { onNext() }
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        cat.displayName,
-                        color = Color.Black,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Uzbek Action Buttons (ORTGA QAYTARISH, KEYINGISI, ULASHISH)
+        // Action Toolbar (Undo, Prev, Index, Next, Favorite, Share)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 20.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clickable { onUndo() }
-            ) {
-                Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("ORTGA QAYTARISH", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clickable { onNext() }
-            ) {
-                Icon(Icons.Default.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("KEYINGISI", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clickable { onShare() }
-            ) {
-                Icon(Icons.Default.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("ULASHISH", color = Color.Gray, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-// 2. Ref 3: PhotoCheck Gallery Grid displaying REAL DEVICE ALBUMS
-@Composable
-fun GalleryScreen(
-    mediaList: List<MediaItem>,
-    realAlbums: List<String>,
-    selectedFilter: String,
-    showDropdownMenu: Boolean,
-    onFilterSelect: (String) -> Unit,
-    onToggleDropdown: () -> Unit,
-    onItemClick: (MediaItem) -> Unit,
-    onOpenActionSheet: () -> Unit
-) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("PhotoCheck", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFF1E2330))
-                        .clickable { onToggleDropdown() }
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
-                ) {
-                    Text("$selectedFilter ▼", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                items(mediaList, key = { it.id }) { item ->
-                    Box(
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFF161922))
-                            .clickable { onItemClick(item) }
-                    ) {
-                        AsyncImage(
-                            model = item.uri,
-                            contentDescription = item.displayName,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-            }
-        }
-
-        // Floating Glassmorphic Dropdown Menu listing REAL ALBUMS from user's phone!
-        if (showDropdownMenu) {
-            Box(
+            // Undo Button
+            IconButton(
+                onClick = onUndo,
+                enabled = canUndo,
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 60.dp, end = 16.dp)
-                    .width(220.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF1E2330).copy(alpha = 0.95f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
-                    .padding(8.dp)
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(if (canUndo) Color(0xFF1E2330) else Color(0xFF141722))
             ) {
-                Column {
-                    realAlbums.forEach { albumName ->
+                Icon(
+                    Icons.Default.Refresh,
+                    contentDescription = "Ortga qaytarish",
+                    tint = if (canUndo) Color(0xFF38BDF8) else Color.DarkGray,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Previous
+            IconButton(
+                onClick = onPrevious,
+                enabled = currentIndex > 0,
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF1E2330))
+            ) {
+                Icon(
+                    Icons.Default.ArrowBack,
+                    contentDescription = "Oldingi",
+                    tint = if (currentIndex > 0) Color.White else Color.DarkGray,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Counter indicator
+            Text(
+                text = "${currentIndex + 1} / $totalCount",
+                color = Color.LightGray,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Next
+            IconButton(
+                onClick = onNext,
+                enabled = currentIndex < totalCount - 1,
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF1E2330))
+            ) {
+                Icon(
+                    Icons.Default.ArrowForward,
+                    contentDescription = "Keyingi",
+                    tint = if (currentIndex < totalCount - 1) Color.White else Color.DarkGray,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Favorite (Heart)
+            IconButton(
+                onClick = onToggleFavorite,
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(if (isFavorite) Color(0xFF7F1D1D) else Color(0xFF1E2330))
+            ) {
+                Icon(
+                    if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = "Sevimli",
+                    tint = if (isFavorite) Color(0xFFEF4444) else Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Share
+            IconButton(
+                onClick = onShare,
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF1E2330))
+            ) {
+                Icon(
+                    Icons.Default.Share,
+                    contentDescription = "Ulashish",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // 📁 PASTKI ALBOMLAR PANELI (QUICK ALBUM SORTER TRAY)
+        Surface(
+            color = Color(0xFF10131D),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                Text(
+                    text = "ALBOMLARGA SARALASH (BOSING VA KEYINGISIGA O'TADI)",
+                    color = Color.Gray,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // + Yangi Albom tugmasi
+                    item {
+                        Button(
+                            onClick = onAddNewAlbum,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                            shape = RoundedCornerShape(16.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8))
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Yangi Albom", color = Color(0xFF38BDF8), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Albomlar ro'yxati
+                    items(allAlbums) { albumName ->
+                        val isAssigned = assignedAlbum == albumName
                         val icon = when {
-                            albumName == "BARCHA FAYLLAR" -> "📁"
                             albumName.contains("Camera", true) || albumName.contains("DCIM", true) -> "📷"
                             albumName.contains("Screenshot", true) -> "📱"
                             albumName.contains("Telegram", true) -> "✈️"
                             albumName.contains("Download", true) -> "📥"
                             albumName.contains("WhatsApp", true) -> "💬"
-                            else -> "🖼️"
+                            albumName.contains("Cartoon", true) || albumName.contains("multfilm", true) -> "🎬"
+                            else -> "📁"
                         }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { onFilterSelect(albumName) }
-                                .padding(vertical = 10.dp, horizontal = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isAssigned) Color(0xFF0284C7) else Color(0xFF1E2330)
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.clickable { onSortToAlbum(albumName) }
                         ) {
-                            Text(icon, fontSize = 16.sp)
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(albumName, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun DuplicatesScreen(
-    duplicateGroups: List<List<MediaItem>>,
-    onDeleteDuplicates: (List<MediaItem>) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text("👯 Dublikat va O'xshash Rasmlar", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text("czkawka algoritmi bo'yicha aniqlangan nusxalar", color = Color.Gray, fontSize = 13.sp)
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (duplicateGroups.isNotEmpty()) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(1),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                items(duplicateGroups) { group ->
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF141722)),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Nusxalar: ${group.size} ta", color = Color.White, fontWeight = FontWeight.Bold)
-                                TextButton(onClick = { onDeleteDuplicates(group.drop(1)) }) {
-                                    Text("Nusxalarni o'chirish", color = Color(0xFFEF4444))
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                group.forEach { item ->
-                                    Box(
-                                        modifier = Modifier
-                                            .size(80.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(Color(0xFF1E2330))
-                                    ) {
-                                        AsyncImage(
-                                            model = item.uri,
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    }
-                                }
+                                Text(icon, fontSize = 14.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = albumName,
+                                    color = if (isAssigned) Color.White else Color(0xFFE2E8F0),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
                 }
             }
-        } else {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(54.dp))
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text("Dublikat rasmlar topilmadi!", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
-            }
         }
     }
 }
 
+// 🗑️ TRASH MANAGEMENT BOTTOM SHEET
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CompressorScreen(
-    mediaList: List<MediaItem>,
-    isCompressing: Boolean,
-    onCompressAll: () -> Unit
-) {
-    val totalSizeMb = mediaList.sumOf { it.size } / (1024.0 * 1024.0)
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("🗜️ Media Squeezer & Optimallashtirish", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text("open_squeezer algoritmi orqali 70% joy tejash", color = Color.Gray, fontSize = 13.sp)
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF141722)),
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Hozirgi egallangan xotira", color = Color.Gray, fontSize = 13.sp)
-                Text(String.format(Locale.US, "%.1f MB", totalSizeMb), color = Color(0xFF38BDF8), fontSize = 32.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(12.dp))
-                Text("Siqishdan keyingi kutilayotgan xotira:", color = Color.Gray, fontSize = 12.sp)
-                Text(String.format(Locale.US, "~%.1f MB (70%% tejash!)", totalSizeMb * 0.3), color = Color(0xFF10B981), fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Button(
-            onClick = { onCompressAll() },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF38BDF8)),
-            shape = RoundedCornerShape(30.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp)
-        ) {
-            if (isCompressing) {
-                CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(24.dp))
-            } else {
-                Text("BARCHA MEDIA FAYLLARNI SIQISH (SIFATNI SAQLAGAN HOLDA)", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-@Composable
-fun TahlilDashboardScreen(
-    mediaList: List<MediaItem>,
+fun TrashManagementSheet(
     trashedItems: List<MediaItem>,
-    favoriteItems: List<MediaItem>,
-    onEmptyTrash: () -> Unit
+    onDismiss: () -> Unit,
+    onRestoreItem: (MediaItem) -> Unit,
+    onRestoreAll: () -> Unit,
+    onDeletePermanently: () -> Unit
 ) {
-    val trashSizeGb = trashedItems.sumOf { it.size } / (1024.0 * 1024.0 * 1024.0)
-    val imageCount = mediaList.count { it.mediaType == MediaType.IMAGE }
-    val videoCount = mediaList.count { it.mediaType == MediaType.VIDEO }
-    val imageSizeGb = mediaList.filter { it.mediaType == MediaType.IMAGE }.sumOf { it.size } / (1024.0 * 1024.0 * 1024.0)
-    val videoSizeGb = mediaList.filter { it.mediaType == MediaType.VIDEO }.sumOf { it.size } / (1024.0 * 1024.0 * 1024.0)
+    val totalSizeMb = trashedItems.sumOf { it.size } / (1024.0 * 1024.0)
 
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF111420),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.Gray) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "🗑️ Savat Boshqaruvi",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "${trashedItems.size} ta fayl (${String.format(Locale.US, "%.1f MB", totalSizeMb)})",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 12.sp
+                    )
+                }
+
+                if (trashedItems.isNotEmpty()) {
+                    TextButton(onClick = onRestoreAll) {
+                        Text("Barchasini Tiklash ↶", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (trashedItems.isNotEmpty()) {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 280.dp)
+                ) {
+                    items(trashedItems, key = { it.id }) { item ->
+                        Box(
+                            modifier = Modifier
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF1E2330))
+                                .clickable { onRestoreItem(item) }
+                        ) {
+                            AsyncImage(
+                                model = item.uri,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+                            // Quick Restore badge
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(4.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Black.copy(alpha = 0.7f))
+                                    .padding(4.dp)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Tiklash", tint = Color(0xFF38BDF8), modifier = Modifier.size(12.dp))
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = onDeletePermanently,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    Icon(Icons.Default.DeleteForever, contentDescription = null, tint = Color.White)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Barchasini Butunlay O'chirish", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(48.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text("Savat bo'sh!", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("Savatga tashlangan fayllar shu yerda paydo bo'ladi.", color = Color.Gray, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 🔲 OPTIONAL GRID VIEW
+@Composable
+fun SlideboxGridView(
+    mediaList: List<MediaItem>,
+    onItemClick: (MediaItem) -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(14.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxSize()
         ) {
-            Text(
-                "PhotoCheck Tahlili",
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF1E2330))
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
-            ) {
-                Text("Tahlil ▼", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        Box(
-            modifier = Modifier.size(230.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val strokeWidth = 26.dp.toPx()
-                drawArc(
-                    color = Color(0xFF3B82F6),
-                    startAngle = -60f,
-                    sweepAngle = 180f,
-                    useCenter = false,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                )
-                drawArc(
-                    color = Color(0xFF10B981),
-                    startAngle = 130f,
-                    sweepAngle = 100f,
-                    useCenter = false,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                )
-                drawArc(
-                    color = Color(0xFFF59E0B),
-                    startAngle = 240f,
-                    sweepAngle = 50f,
-                    useCenter = false,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                )
-            }
-
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Xotira Tahlili", color = Color.Gray, fontSize = 12.sp)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    String.format(Locale.US, "%.1f GB", if (trashSizeGb > 0) trashSizeGb else 14.2),
-                    color = Color.White,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text("o'chirish navbatida", color = Color.Gray, fontSize = 12.sp)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF141722)),
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+            items(mediaList, key = { it.id }) { item ->
+                Box(
+                    modifier = Modifier
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF1E2330))
+                        .clickable { onItemClick(item) }
                 ) {
-                    Icon(Icons.Default.Home, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Rasmlar", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    Text("$imageCount fayl", color = Color.Gray, fontSize = 11.sp)
-                    Text(String.format(Locale.US, "%.1f GB", imageSizeGb), color = Color.Gray, fontSize = 11.sp)
+                    AsyncImage(
+                        model = item.uri,
+                        contentDescription = item.displayName,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    if (item.mediaType == MediaType.VIDEO) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(4.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color.Black.copy(alpha = 0.7f))
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            Text(item.formattedDuration.ifEmpty { "▶" }, color = Color.White, fontSize = 9.sp)
+                        }
+                    }
                 }
             }
-
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF141722)),
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Videolar", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    Text("$videoCount fayl", color = Color.Gray, fontSize = 11.sp)
-                    Text(String.format(Locale.US, "%.1f GB", videoSizeGb), color = Color.Gray, fontSize = 11.sp)
-                }
-            }
-
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF141722)),
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Saralanganlar", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    Text("${favoriteItems.size} fayl", color = Color.Gray, fontSize = 11.sp)
-                    Text("1.1 GB", color = Color.Gray, fontSize = 11.sp)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Button(
-            onClick = { onEmptyTrash() },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-            shape = RoundedCornerShape(30.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp)
-        ) {
-            Text(
-                "TIZIM SAVATCHASINI HOZIR TOZALASH",
-                color = Color.Black,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
         }
     }
 }

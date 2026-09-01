@@ -16,10 +16,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.fingo.photocheck.model.MediaItem
+import com.fingo.photocheck.update.UpdateDialog
+import com.fingo.photocheck.update.UpdateInfo
+import com.fingo.photocheck.update.UpdateManager
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +39,21 @@ fun ParentSettingsScreen(
     onOpenClassicMode: () -> Unit,
     onClose: () -> Unit
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    var updateInfoState by remember { mutableStateOf<UpdateInfo?>(null) }
+    var updateStatusMessage by remember { mutableStateOf<String?>(null) }
+    var showUpdateModal by remember { mutableStateOf(false) }
+
+    val currentAppVersion = remember {
+        try {
+            val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            pInfo.versionName ?: "1.0.01"
+        } catch (e: Exception) {
+            "1.0.01"
+        }
+    }
     // Group real device albums and compute counts
     val realAlbumsWithCount = remember(mediaList) {
         mediaList.groupBy { it.bucketName }
@@ -226,7 +243,7 @@ fun ParentSettingsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             "📁 Ruxsat Berilgan Albomlar",
                             color = Color.White,
@@ -240,12 +257,22 @@ fun ParentSettingsScreen(
                         )
                     }
 
-                    Row {
-                        TextButton(onClick = onSelectAllAlbums) {
-                            Text("Barchasi", color = Color(0xFF38BDF8), fontSize = 11.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedButton(
+                            onClick = onSelectAllAlbums,
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF38BDF8)),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text("Barchasi", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
-                        TextButton(onClick = onClearAllAlbums) {
-                            Text("Tozalash", color = Color(0xFFEF4444), fontSize = 11.sp)
+                        OutlinedButton(
+                            onClick = onClearAllAlbums,
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444)),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text("Bekor qilish", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -253,7 +280,7 @@ fun ParentSettingsScreen(
 
             // List of device albums with checkboxes
             items(realAlbumsWithCount) { (albumName, count) ->
-                val isChecked = whitelistedAlbums.contains(albumName) || whitelistedAlbums.isEmpty()
+                val isChecked = whitelistedAlbums.contains(albumName)
                 val icon = when {
                     albumName.contains("Camera", true) || albumName.contains("DCIM", true) -> "📷"
                     albumName.contains("Screenshot", true) -> "📱"
@@ -307,6 +334,129 @@ fun ParentSettingsScreen(
                     }
                 }
             }
+
+            // Section 5: App Updates (In-App Updater)
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF161C2C)),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("🔄", fontSize = 20.sp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        "Dastur Yangilanishi",
+                                        color = Color.White,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        "Joriy versiya: v$currentAppVersion",
+                                        color = Color(0xFF94A3B8),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+
+                            if (updateInfoState?.hasUpdate == true) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFF0284C7))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        "Yangi v${updateInfoState?.latestVersion}",
+                                        color = Color.White,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        if (updateStatusMessage != null) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = updateStatusMessage!!,
+                                color = if (updateInfoState?.hasUpdate == true) Color(0xFF38BDF8) else Color(0xFF94A3B8),
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        if (updateInfoState?.hasUpdate == true) {
+                            Button(
+                                onClick = { showUpdateModal = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Hoziroq Yangilash (v${updateInfoState?.latestVersion})", fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = {
+                                    isCheckingUpdate = true
+                                    updateStatusMessage = "Serverdan tekshirilmoqda..."
+                                    coroutineScope.launch {
+                                        val result = UpdateManager.checkForUpdates(context)
+                                        isCheckingUpdate = false
+                                        result.onSuccess { info ->
+                                            updateInfoState = info
+                                            if (info.hasUpdate) {
+                                                updateStatusMessage = "Yangi v${info.latestVersion} versiyasi mavjud!"
+                                                showUpdateModal = true
+                                            } else {
+                                                updateStatusMessage = "Sizda eng so'nggi versiya (v${info.currentVersion}) o'rnatilgan ✅"
+                                            }
+                                        }.onFailure { err ->
+                                            updateStatusMessage = "Tekshirishda xatolik: ${err.localizedMessage ?: "Internetni tekshiring"}"
+                                        }
+                                    }
+                                },
+                                enabled = !isCheckingUpdate,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF38BDF8)),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                if (isCheckingUpdate) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = Color(0xFF38BDF8),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Tekshirilmoqda...", fontSize = 12.sp)
+                                } else {
+                                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Yangilanishlarni Tekshirish", fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // In-App Update Modal Dialog
+        if (showUpdateModal && updateInfoState != null) {
+            UpdateDialog(
+                updateInfo = updateInfoState!!,
+                onDismiss = { showUpdateModal = false }
+            )
         }
     }
 }
