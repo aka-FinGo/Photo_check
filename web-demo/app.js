@@ -203,12 +203,29 @@ class PhotoCheckApp {
         document.getElementById('btn-open-donate-kids')?.addEventListener('click', () => this.openDonateScreen());
         document.getElementById('btn-open-donate-pro')?.addEventListener('click', () => this.openDonateScreen());
 
+        // Drawer Hamburger
+        document.getElementById('btn-open-drawer')?.addEventListener('click', () => this.openDrawer());
+        document.getElementById('drawer-overlay')?.addEventListener('click', (e) => {
+            if (e.target.id === 'drawer-overlay') this.closeDrawer();
+        });
+
+        // Check update hub simulator
+        document.getElementById('btn-check-update-hub')?.addEventListener('click', () => {
+            const statusEl = document.getElementById('update-hub-status');
+            if (statusEl) statusEl.textContent = 'Tekshirilmoqda... ⏳';
+            setTimeout(() => {
+                if (statusEl) statusEl.textContent = 'v1.0.03 • Eng so\'nggi versiya o\'rnatilgan ✅';
+                this.showToast('Ilova eng so\'nggi versiyada! ✅');
+            }, 1000);
+        });
+
         // Bulk Album Selection (Select All / Deselect All)
         document.getElementById('btn-select-all-albums')?.addEventListener('click', () => {
             const allFolders = Array.from(new Set(state.media.map(m => m.folder)));
             state.whitelistedFolders = allFolders;
             this.renderAlbumChecklist();
             this.renderKidsGallery();
+            this.updateBentoStats();
             this.showToast('Barcha albomlar belgilandi ✅');
         });
 
@@ -216,6 +233,7 @@ class PhotoCheckApp {
             state.whitelistedFolders = [];
             this.renderAlbumChecklist();
             this.renderKidsGallery();
+            this.updateBentoStats();
             this.showToast('Barcha albomlar bekor qilindi ❌');
         });
 
@@ -897,6 +915,36 @@ class PhotoCheckApp {
         state.currentIndex = 0;
         this.showToast('Qayta boshlandi 🔄');
         this.renderCardStack();
+    }
+
+    // Hamburger Drawer & Modal Methods
+    openDrawer() {
+        document.getElementById('drawer-overlay')?.classList.add('active');
+    }
+
+    closeDrawer() {
+        document.getElementById('drawer-overlay')?.classList.remove('active');
+    }
+
+    openGuideModal() {
+        this.closeDrawer();
+        document.getElementById('guide-modal')?.classList.add('active');
+    }
+
+    openAboutModal() {
+        this.closeDrawer();
+        document.getElementById('about-modal')?.classList.add('active');
+    }
+
+    updateBentoStats() {
+        const countEl = document.getElementById('bento-whitelisted-count');
+        const timerEl = document.getElementById('bento-timer-value');
+        if (countEl) {
+            countEl.textContent = `${state.whitelistedFolders.length} ta albom`;
+        }
+        if (timerEl) {
+            timerEl.textContent = state.timerMinutes > 0 ? `${state.timerMinutes} daqiqa` : 'Cheksiz';
+        }
     }
 
     showToast(msg) {

@@ -563,7 +563,7 @@ body {
     margin-bottom: 4px;
 }
 
-.btn-back-parent {
+.btn-drawer-hamburger {
     background: #1e293b;
     border: none;
     color: #fff;
@@ -571,7 +571,96 @@ body {
     height: 36px;
     border-radius: 50%;
     cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
+
+.btn-drawer-hamburger:active { transform: scale(0.92); }
+
+/* Bento Analytics Grid */
+.bento-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.bento-stat-card {
+    background: #141a28;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 18px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stat-label { font-size: 11px; font-weight: 700; color: #94a3b8; }
+.stat-value { font-size: 17px; font-weight: 800; color: #fde047; }
+.stat-value.text-primary { color: #38bdf8; }
+.stat-sub { font-size: 10px; color: #64748b; }
+
+/* Hamburger Navigation Drawer */
+.drawer-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    z-index: 250;
+    display: none;
+    transition: opacity 0.3s;
+}
+
+.drawer-overlay.active { display: block; }
+
+.drawer-sheet {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 270px;
+    background: #0f1420;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.drawer-overlay.active .drawer-sheet { transform: translateX(0); }
+
+.drawer-header {
+    background: linear-gradient(135deg, #1e1b4b 0%, #0f1420 100%);
+    padding: 24px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.drawer-header h3 { font-size: 20px; font-weight: 800; color: #fde047; }
+.drawer-header p { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+.drawer-badge { display: inline-block; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 8px; margin-top: 8px; border: 1px solid rgba(56, 189, 248, 0.3); }
+
+.drawer-menu { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+
+.drawer-item {
+    background: transparent;
+    border: none;
+    color: #cbd5e1;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.drawer-item:hover, .drawer-item.active { background: #1e293b; color: #fff; }
+.drawer-item i { font-size: 16px; width: 20px; text-align: center; }
+
+.text-amber { color: #f59e0b; }
+.text-indigo { color: #818cf8; }
 
 .setting-card {
     background: #141824;

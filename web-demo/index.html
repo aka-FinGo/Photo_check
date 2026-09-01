@@ -10,7 +10,7 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Main Style & Favicon -->
@@ -183,10 +183,27 @@
             <div id="screen-parent-settings" class="app-screen hidden">
                 <div class="parent-settings-content">
                     <div class="parent-header">
-                        <button class="btn-back-parent" id="btn-close-parent-settings">
-                            <i class="fas fa-arrow-left"></i>
+                        <button class="btn-drawer-hamburger" id="btn-open-drawer" title="Gamburger Menyusi">
+                            <i class="fas fa-bars"></i>
                         </button>
-                        <h2>🛡️ Ota-ona Sozlamalari</h2>
+                        <h2>🛡️ Ota-ona Boshqaruvi</h2>
+                        <button class="btn-back-parent" id="btn-close-parent-settings" style="margin-left:auto;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <!-- Bento Analytics Widget -->
+                    <div class="bento-stats-grid">
+                        <div class="bento-stat-card">
+                            <span class="stat-label">Ruxsat etilgan</span>
+                            <span class="stat-value" id="bento-whitelisted-count">3 ta albom</span>
+                            <span class="stat-sub">Jami 6 ta fayl</span>
+                        </div>
+                        <div class="bento-stat-card">
+                            <span class="stat-label">Ekran Taymeri</span>
+                            <span class="stat-value text-primary" id="bento-timer-value">30 daqiqa</span>
+                            <span class="stat-sub">Cheklov o'rnatilgan</span>
+                        </div>
                     </div>
 
                     <div class="setting-card">
@@ -237,6 +254,19 @@
                         </div>
                         <div class="album-checklist" id="album-checklist-container">
                             <!-- Dynamic Checkboxes -->
+                        </div>
+                    </div>
+
+                    <!-- In-App Update Hub Card -->
+                    <div class="setting-card">
+                        <div class="setting-row">
+                            <div>
+                                <h3>🔄 Dastur Yangilanishi</h3>
+                                <p id="update-hub-status">v1.0.03 • Eng so'nggi rasmiy versiya</p>
+                            </div>
+                            <button class="btn btn-outline btn-sm" id="btn-check-update-hub">
+                                <i class="fas fa-rotate"></i> Tekshirish
+                            </button>
                         </div>
                     </div>
 
@@ -334,10 +364,35 @@
                 </div>
             </div>
 
+            <!-- Hamburger Slide-out Drawer -->
+            <div class="drawer-overlay" id="drawer-overlay">
+                <div class="drawer-sheet" id="drawer-sheet">
+                    <div class="drawer-header">
+                        <h3>🎈 PhotoCheck</h3>
+                        <p>Boshqaruv Menyu</p>
+                        <span class="drawer-badge">v1.0.03 Rasmiy</span>
+                    </div>
+                    <div class="drawer-menu">
+                        <button class="drawer-item active" onclick="app.closeDrawer()">
+                            <i class="fas fa-shield-halved text-primary"></i> Asosiy Sozlamalar
+                        </button>
+                        <button class="drawer-item" onclick="app.openGuideModal()">
+                            <i class="fas fa-book-open text-amber"></i> Qo'llanma & Yo'riqnoma
+                        </button>
+                        <button class="drawer-item" onclick="app.openAboutModal()">
+                            <i class="fas fa-circle-info text-indigo"></i> Dastur Haqida
+                        </button>
+                        <button class="drawer-item" onclick="app.closeDrawer(); app.openDonateScreen();">
+                            <i class="fas fa-heart text-danger"></i> Donat & Homiylik
+                        </button>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
-    <!-- Kids Fullscreen Media Viewer Modal (1:1 Mi Gallery Style - Pure swipe, zero extra buttons) -->
+    <!-- Kids Fullscreen Media Viewer Modal (1:1 Mi Gallery Style - Pure swipe & Zoom) -->
     <div class="kids-viewer-modal" id="kids-viewer-modal">
         <div class="kids-viewer-topbar" id="kids-viewer-topbar">
             <button class="kids-viewer-close" id="kids-viewer-close"><i class="fas fa-arrow-left"></i></button>
@@ -371,6 +426,44 @@
                 <button class="btn btn-outline" id="btn-close-trash-modal">
                     Yopish
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guide Modal -->
+    <div class="modal-overlay" id="guide-modal">
+        <div class="modal-card" style="text-align: left; max-height: 80vh; overflow-y: auto;">
+            <div class="modal-header">
+                <i class="fas fa-book-open text-amber"></i>
+                <h3>📖 PhotoCheck Qo'llanmasi</h3>
+            </div>
+            <div style="font-size: 13px; color: #cbd5e1; display: flex; flex-direction: column; gap: 12px;">
+                <p><b>1. 👶 Bolalar Rejimi:</b> Faqat ruxsat etilgan albomlar ko'rinadi. O'chirish va ulashish butunlay yashirilgan.</p>
+                <p><b>2. 🔍 Zoom (Kattalashtirish):</b> Rasmni 2 marta tez bosish yoki g'ildirak orqali kattalashtirib ko'rish mumkin.</p>
+                <p><b>3. 🎴 1:1 Slidebox Sorter:</b> Rasmni tepaga suring — savatga tashlanadi. Pastdagi albomni bosing — darhol saralanadi!</p>
+                <p><b>4. ⏳ Ekran Taymeri:</b> Vaqt tugasa "Uxlash vaqti 🌙" qulfi chiqadi.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="document.getElementById('guide-modal').classList.remove('active')">Tushunarli</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- About Modal -->
+    <div class="modal-overlay" id="about-modal">
+        <div class="modal-card" style="text-align: center;">
+            <div class="modal-header">
+                <i class="fas fa-circle-info text-primary"></i>
+                <h3>🎈 PhotoCheck Haqida</h3>
+            </div>
+            <div style="font-size: 13px; color: #94a3b8; display: flex; flex-direction: column; gap: 8px; margin: 10px 0;">
+                <p><b style="color: #fff;">Versiya:</b> v1.0.03 (Rasmiy Reliz)</p>
+                <p><b style="color: #fff;">Dasturchi:</b> aka-FinGo & Google Antigravity</p>
+                <p><b style="color: #fff;">Litsenziya:</b> MIT License (Ochiq kodli)</p>
+                <p><b style="color: #fff;">Texnologiyalar:</b> Jetpack Compose, Kotlin, Material 3</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="document.getElementById('about-modal').classList.remove('active')">Yopish</button>
             </div>
         </div>
     </div>
