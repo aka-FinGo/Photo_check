@@ -158,11 +158,15 @@
                     </div>
                 </div>
 
-                <!-- Slidebox Middle Action Bar (Favorite & Undo) -->
+                <!-- Slidebox Middle Action Bar (Undo, Trash, Favorite) -->
                 <div class="slidebox-action-bar">
                     <button class="btn-slide-action" id="btn-slide-undo" title="Ortga qaytarish (Undo)">
                         <i class="fas fa-rotate-left"></i>
                         <span>Ortga</span>
+                    </button>
+                    <button class="btn-slide-action btn-trash-action" id="btn-slide-trash" title="Savatga tashlash">
+                        <i class="fas fa-trash-alt text-danger"></i>
+                        <span>Savat</span>
                     </button>
                     <button class="btn-slide-action btn-fav" id="btn-slide-fav" title="Sevimlilar">
                         <i class="far fa-heart" id="slide-fav-icon"></i>
@@ -248,8 +252,12 @@
                                 <p>Bolaga faqat tanlangan albomlar ko'rinadi:</p>
                             </div>
                             <div class="bulk-album-actions">
-                                <button class="btn-link" id="btn-select-all-albums">Barchasi</button>
-                                <button class="btn-link text-danger" id="btn-clear-all-albums">Bekor qilish</button>
+                                <button class="btn-icon-chip" id="btn-select-all-albums">
+                                    <i class="fas fa-check-double"></i> Barchasi
+                                </button>
+                                <button class="btn-icon-chip text-danger" id="btn-clear-all-albums">
+                                    <i class="fas fa-times-circle"></i> Bekor qilish
+                                </button>
                             </div>
                         </div>
                         <div class="album-checklist" id="album-checklist-container">

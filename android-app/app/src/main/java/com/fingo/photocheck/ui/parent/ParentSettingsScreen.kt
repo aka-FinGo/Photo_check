@@ -446,12 +446,36 @@ fun ParentSettingsScreen(
                                     Text("📁 Ruxsat Etilgan Albomlar", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                     Text("Bolaga faqat tanlangan albomlar ko'rinadi", color = Color(0xFF94A3B8), fontSize = 11.sp)
                                 }
-                                Row {
-                                    TextButton(onClick = onSelectAllAlbums) {
-                                        Text("Barchasi", color = Color(0xFF38BDF8), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = Color(0xFF38BDF8).copy(alpha = 0.15f),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.4f)),
+                                        modifier = Modifier.clickable { onSelectAllAlbums() }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.DoneAll, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(14.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Barchasi", color = Color(0xFF38BDF8), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
-                                    TextButton(onClick = onClearAllAlbums) {
-                                        Text("Bekor qilish", color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = Color(0xFFEF4444).copy(alpha = 0.15f),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.4f)),
+                                        modifier = Modifier.clickable { onClearAllAlbums() }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.RemoveDone, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(14.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Bekor qilish", color = Color(0xFFEF4444), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }

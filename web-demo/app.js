@@ -290,8 +290,9 @@ class PhotoCheckApp {
             }
         });
 
-        // Slidebox Undo & Favorite buttons
+        // Slidebox Undo, Trash & Favorite buttons
         document.getElementById('btn-slide-undo')?.addEventListener('click', () => this.performUndo());
+        document.getElementById('btn-slide-trash')?.addEventListener('click', () => this.trashCurrentCard());
         document.getElementById('btn-slide-fav')?.addEventListener('click', () => this.toggleCurrentFavorite());
 
         // Top Bar Trash button
@@ -387,49 +388,129 @@ class PhotoCheckApp {
         }
 
         if (item.type === 'video') {
-            content.innerHTML = `<video src="${item.url}" controls autoplay loop style="width: 100%; max-height: 85vh; object-fit: contain;"></video>`;
+            content.innerHTML = `
+                <div class="video-player-container">
+                    <video id="kids-active-video" src="${item.url}" playsinline autoplay loop></video>
+                    <div class="video-controls-overlay">
+                        <div class="video-timeline-row">
+                            <span class="video-time-label" id="vid-curr-time">00:00</span>
+                            <input type="range" class="video-timeline-slider" id="vid-timeline" min="0" max="100" value="0">
+                            <span class="video-time-label" id="vid-total-time">00:00</span>
+                        </div>
+                        <div class="video-btns-row">
+                            <button class="btn-video-ctrl" id="btn-vid-rewind" title="10s ortga"><i class="fas fa-backward"></i></button>
+                            <button class="btn-video-ctrl btn-play-toggle" id="btn-vid-play" title="Play/Pause"><i class="fas fa-pause"></i></button>
+                            <button class="btn-video-ctrl" id="btn-vid-forward" title="10s oldinga"><i class="fas fa-forward"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const video = document.getElementById('kids-active-video');
+            const timeline = document.getElementById('vid-timeline');
+            const currTimeLabel = document.getElementById('vid-curr-time');
+            const totalTimeLabel = document.getElementById('vid-total-time');
+            const playBtn = document.getElementById('btn-vid-play');
+            const rewindBtn = document.getElementById('btn-vid-rewind');
+            const forwardBtn = document.getElementById('btn-vid-forward');
+
+            const formatSec = (sec) => {
+                if (isNaN(sec) || sec < 0) return "00:00";
+                const m = Math.floor(sec / 60);
+                const s = Math.floor(sec % 60);
+                return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            };
+
+            if (video && timeline) {
+                video.addEventListener('loadedmetadata', () => {
+                    timeline.max = Math.floor(video.duration);
+                    if (totalTimeLabel) totalTimeLabel.textContent = formatSec(video.duration);
+                });
+
+                video.addEventListener('timeupdate', () => {
+                    timeline.value = Math.floor(video.currentTime);
+                    if (currTimeLabel) currTimeLabel.textContent = formatSec(video.currentTime);
+                    if (totalTimeLabel && video.duration) totalTimeLabel.textContent = formatSec(video.duration);
+                });
+
+                timeline.addEventListener('input', () => {
+                    video.currentTime = Number(timeline.value);
+                });
+
+                playBtn?.addEventListener('click', () => {
+                    if (video.paused) {
+                        video.play();
+                        playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                    } else {
+                        video.pause();
+                        playBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    }
+                });
+
+                rewindBtn?.addEventListener('click', () => {
+                    video.currentTime = Math.max(0, video.currentTime - 10);
+                });
+
+                forwardBtn?.addEventListener('click', () => {
+                    video.currentTime = Math.min(video.duration || 100, video.currentTime + 10);
+                });
+            }
         } else {
             content.innerHTML = `<img src="${item.url}" alt="${item.title}" style="max-width: 100%; max-height: 85vh; object-fit: contain;">`;
         }
 
-        // Double tap or double click to zoom image
+        // Double tap & 2-Finger Pinch Zoom for Images
         let currentScale = 1;
         let lastTap = 0;
+        let initialPinchDist = 0;
+        let startScale = 1;
 
         const imgEl = content.querySelector('img');
         if (imgEl) {
             imgEl.draggable = false;
             imgEl.ondragstart = (e) => e.preventDefault();
-            imgEl.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)';
+            imgEl.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
             imgEl.style.transformOrigin = 'center center';
             imgEl.style.userSelect = 'none';
             imgEl.style.webkitUserDrag = 'none';
 
             content.ondblclick = () => {
-                currentScale = currentScale > 1 ? 1 : 2.5;
+                currentScale = currentScale > 1.2 ? 1 : 2.5;
                 imgEl.style.transform = `scale(${currentScale})`;
             };
 
             content.onwheel = (e) => {
                 e.preventDefault();
                 currentScale += e.deltaY * -0.002;
-                currentScale = Math.min(Math.max(1, currentScale), 4);
+                currentScale = Math.min(Math.max(1, currentScale), 4.5);
                 imgEl.style.transform = `scale(${currentScale})`;
             };
         }
 
-        // Attach Mi Gallery Horizontal Swipe Gestures
+        // Attach Mi Gallery Horizontal Swipe Gestures & Pinch zoom
         let startX = 0;
         let startY = 0;
         let isSwiping = false;
 
         const handleTouchStart = (e) => {
-            if (e.touches && e.touches.length > 1) return; // ignore pinch here
+            if (e.touches && e.touches.length === 2 && imgEl) {
+                // 2-finger pinch start
+                isSwiping = false;
+                initialPinchDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                startScale = currentScale;
+                return;
+            }
+
+            if (e.touches && e.touches.length > 1) return;
+
             const now = new Date().getTime();
             const timesince = now - lastTap;
             if (timesince < 300 && timesince > 0 && imgEl) {
                 // Double tap zoom
-                currentScale = currentScale > 1 ? 1 : 2.5;
+                currentScale = currentScale > 1.2 ? 1 : 2.5;
                 imgEl.style.transform = `scale(${currentScale})`;
                 lastTap = 0;
                 return;
@@ -442,7 +523,24 @@ class PhotoCheckApp {
             isSwiping = true;
         };
 
+        const handleTouchMove = (e) => {
+            if (e.touches && e.touches.length === 2 && imgEl && initialPinchDist > 0) {
+                // 2-finger pinch move
+                e.preventDefault();
+                const dist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                currentScale = Math.min(Math.max(1, startScale * (dist / initialPinchDist)), 4.5);
+                imgEl.style.transform = `scale(${currentScale})`;
+            }
+        };
+
         const handleTouchEnd = (e) => {
+            if (e.touches && e.touches.length < 2) {
+                initialPinchDist = 0;
+            }
+
             if (!isSwiping) return;
             isSwiping = false;
             if (currentScale > 1.1) return; // don't swipe while zoomed in
@@ -452,7 +550,7 @@ class PhotoCheckApp {
             const diffY = touch.clientY - startY;
 
             // Horizontal Swipe detected
-            if (Math.abs(diffX) > 45 && Math.abs(diffX) > Math.abs(diffY)) {
+            if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY)) {
                 if (diffX < 0) {
                     // Swipe Left -> Next Item
                     if (state.viewingKidIndex < list.length - 1) {
@@ -469,10 +567,11 @@ class PhotoCheckApp {
             }
         };
 
+        content.ontouchstart = handleTouchStart;
+        content.ontouchmove = handleTouchMove;
+        content.ontouchend = handleTouchEnd;
         content.onmousedown = handleTouchStart;
         content.onmouseup = handleTouchEnd;
-        content.ontouchstart = handleTouchStart;
-        content.ontouchend = handleTouchEnd;
 
         modal.classList.add('active');
     }
@@ -567,6 +666,8 @@ class PhotoCheckApp {
             const touch = e.touches ? e.touches[0] : e;
             startX = touch.clientX;
             startY = touch.clientY;
+            currentX = 0;
+            currentY = 0;
             card.style.transition = 'none';
         };
 
@@ -580,21 +681,21 @@ class PhotoCheckApp {
             card.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotate}deg)`;
 
             // Swipe Up to Trash visual feedback
-            if (currentY < -40 && overlayUp) {
-                overlayUp.style.opacity = Math.min(1, Math.abs(currentY) / 120);
+            if (currentY < -30 && overlayUp) {
+                overlayUp.style.opacity = Math.min(1, Math.abs(currentY) / 80);
             } else if (overlayUp) {
                 overlayUp.style.opacity = '0';
             }
 
             // Left/Right feedback
-            if (currentX < -40 && overlayLeft) {
-                overlayLeft.style.opacity = Math.min(1, Math.abs(currentX) / 120);
+            if (currentX < -30 && overlayLeft) {
+                overlayLeft.style.opacity = Math.min(1, Math.abs(currentX) / 80);
             } else if (overlayLeft) {
                 overlayLeft.style.opacity = '0';
             }
 
-            if (currentX > 40 && overlayRight) {
-                overlayRight.style.opacity = Math.min(1, Math.abs(currentX) / 120);
+            if (currentX > 30 && overlayRight) {
+                overlayRight.style.opacity = Math.min(1, Math.abs(currentX) / 80);
             } else if (overlayRight) {
                 overlayRight.style.opacity = '0';
             }
@@ -603,32 +704,32 @@ class PhotoCheckApp {
         const onTouchEnd = () => {
             if (!isDragging) return;
             isDragging = false;
-            card.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
+            card.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)';
 
             if (overlayUp) overlayUp.style.opacity = '0';
             if (overlayLeft) overlayLeft.style.opacity = '0';
             if (overlayRight) overlayRight.style.opacity = '0';
 
-            // Swipe UP -> Move to Trash
-            if (currentY < -80) {
+            // Swipe UP -> Move to Trash (Threshold: currentY < -50)
+            if (currentY < -50 && Math.abs(currentY) > Math.abs(currentX) * 0.6) {
                 card.style.transform = 'translate(0px, -600px) scale(0.3)';
                 setTimeout(() => {
                     this.moveToTrash(item);
-                }, 200);
+                }, 180);
             }
             // Swipe LEFT -> Next
-            else if (currentX < -90) {
+            else if (currentX < -70) {
                 card.style.transform = 'translate(-600px, 0px)';
                 setTimeout(() => {
                     this.nextCard();
-                }, 200);
+                }, 180);
             }
             // Swipe RIGHT -> Previous
-            else if (currentX > 90) {
+            else if (currentX > 70) {
                 card.style.transform = 'translate(600px, 0px)';
                 setTimeout(() => {
                     this.prevCard();
-                }, 200);
+                }, 180);
             }
             // Snap back
             else {
@@ -636,21 +737,37 @@ class PhotoCheckApp {
             }
         };
 
-        card.addEventListener('mousedown', onTouchStart);
-        window.addEventListener('mousemove', onTouchMove);
-        window.addEventListener('mouseup', onTouchEnd);
-
-        card.addEventListener('touchstart', onTouchStart, { passive: true });
-        window.addEventListener('touchmove', onTouchMove, { passive: true });
-        window.addEventListener('touchend', onTouchEnd);
+        card.onpointerdown = (e) => {
+            try { card.setPointerCapture(e.pointerId); } catch (_) {}
+            onTouchStart(e);
+        };
+        card.onpointermove = onTouchMove;
+        card.onpointerup = (e) => {
+            try { card.releasePointerCapture(e.pointerId); } catch (_) {}
+            onTouchEnd(e);
+        };
+        card.onpointercancel = (e) => {
+            try { card.releasePointerCapture(e.pointerId); } catch (_) {}
+            onTouchEnd(e);
+        };
     }
 
     // 1:1 Slidebox Actions
+    trashCurrentCard() {
+        const list = this.getProActiveMedia();
+        if (list.length > 0 && state.currentIndex < list.length) {
+            const item = list[state.currentIndex];
+            this.moveToTrash(item);
+        }
+    }
+
     moveToTrash(item) {
-        state.trash.push(item.id);
-        state.undoStack.push({ type: 'trash', itemId: item.id });
-        this.showToast('Savatga tashlandi 🗑️');
-        this.renderCardStack();
+        if (!state.trash.includes(item.id)) {
+            state.trash.push(item.id);
+            state.undoStack.push({ type: 'trash', itemId: item.id });
+            this.showToast('Savatga tashlandi 🗑️');
+            this.renderCardStack();
+        }
     }
 
     nextCard() {

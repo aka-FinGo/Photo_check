@@ -645,7 +645,7 @@ fun SlideboxCardSorterScreen(
                     .pointerInput(item.id) {
                         detectDragGestures(
                             onDragEnd = {
-                                if (offsetY.value < -70f) {
+                                if (offsetY.value < -50f && kotlin.math.abs(offsetY.value) > kotlin.math.abs(offsetX.value) * 0.6f) {
                                     // 👆 SWIPE UP TO TRASH
                                     scope.launch {
                                         offsetY.animateTo(-900f, spring())
@@ -655,7 +655,7 @@ fun SlideboxCardSorterScreen(
                                         offsetY.snapTo(0f)
                                         scale.snapTo(1f)
                                     }
-                                } else if (offsetX.value > 120f) {
+                                } else if (offsetX.value > 90f) {
                                     // 👉 SWIPE RIGHT (PREVIOUS)
                                     scope.launch {
                                         offsetX.animateTo(600f, tween(140))
@@ -663,7 +663,7 @@ fun SlideboxCardSorterScreen(
                                         offsetX.snapTo(0f)
                                         offsetY.snapTo(0f)
                                     }
-                                } else if (offsetX.value < -120f) {
+                                } else if (offsetX.value < -90f) {
                                     // 👈 SWIPE LEFT (NEXT)
                                     scope.launch {
                                         offsetX.animateTo(-600f, tween(140))
@@ -817,6 +817,22 @@ fun SlideboxCardSorterScreen(
                     Icons.Default.ArrowForward,
                     contentDescription = "Keyingi",
                     tint = if (currentIndex < totalCount - 1) Color.White else Color.DarkGray,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Trash Button (Quick Trash)
+            IconButton(
+                onClick = onTrash,
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF7F1D1D).copy(alpha = 0.85f))
+            ) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Savatga tashlash",
+                    tint = Color(0xFFEF4444),
                     modifier = Modifier.size(20.dp)
                 )
             }

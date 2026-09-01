@@ -683,16 +683,115 @@ body {
 
 .bulk-album-actions { display: flex; gap: 8px; }
 
-.btn-link {
-    background: none;
-    border: none;
-    color: var(--accent-color);
-    font-size: 12px;
+.btn-icon-chip {
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: #38bdf8;
+    padding: 6px 10px;
+    border-radius: 10px;
+    font-size: 11px;
     font-weight: 700;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
 }
 
-.btn-link.text-danger { color: var(--trash-color); }
+.btn-icon-chip:hover {
+    background: rgba(56, 189, 248, 0.22);
+}
+
+.btn-icon-chip.text-danger {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #ef4444;
+}
+
+.btn-icon-chip.text-danger:hover {
+    background: rgba(239, 68, 68, 0.22);
+}
+
+.btn-slide-action.btn-trash-action {
+    color: #ef4444;
+}
+
+.btn-slide-action.btn-trash-action:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+
+/* Kids Video Player Timeline & Controls */
+.video-player-container {
+    position: relative;
+    width: 100%;
+    max-height: 85vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.video-player-container video {
+    width: 100%;
+    max-height: 85vh;
+    object-fit: contain;
+    border-radius: 16px;
+}
+
+.video-controls-overlay {
+    position: absolute;
+    bottom: 14px;
+    left: 12px;
+    right: 12px;
+    background: rgba(15, 20, 32, 0.9);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 100;
+}
+
+.video-timeline-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.video-time-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #cbd5e1;
+    font-variant-numeric: tabular-nums;
+}
+
+.video-timeline-slider {
+    flex: 1;
+    accent-color: #38bdf8;
+    cursor: pointer;
+    height: 4px;
+}
+
+.video-btns-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.btn-video-ctrl {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+
+.btn-video-ctrl.btn-play-toggle {
+    font-size: 20px;
+    color: #38bdf8;
+}
 
 .album-checklist {
     display: flex;

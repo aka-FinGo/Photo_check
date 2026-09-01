@@ -331,7 +331,7 @@ fun KidsSystemGalleryViewer(
     }
 }
 
-// Pinch-to-zoom & Double-tap zoomable image component (allows HorizontalPager swiping when not zoomed)
+// Pinch-to-zoom (2-finger) & Double-tap zoomable image component
 @Composable
 fun KidsZoomableImage(
     model: Any?,
@@ -340,7 +340,6 @@ fun KidsZoomableImage(
 ) {
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
-    val isZoomed = scale > 1.05f
 
     Box(
         modifier = Modifier
@@ -349,31 +348,33 @@ fun KidsZoomableImage(
                 detectTapGestures(
                     onTap = { onSingleTap() },
                     onDoubleTap = {
-                        scale = if (scale > 1f) 1f else 2.5f
-                        offset = Offset.Zero
+                        if (scale > 1.2f) {
+                            scale = 1f
+                            offset = Offset.Zero
+                        } else {
+                            scale = 2.5f
+                            offset = Offset.Zero
+                        }
                     }
                 )
             }
-            .then(
-                if (isZoomed) {
-                    Modifier.pointerInput(Unit) {
-                        detectTransformGestures { _, pan, zoom, _ ->
-                            scale = (scale * zoom).coerceIn(1f, 4f)
-                            if (scale > 1.05f) {
-                                offset = Offset(
-                                    x = offset.x + pan.x,
-                                    y = offset.y + pan.y
-                                )
-                            } else {
-                                scale = 1f
-                                offset = Offset.Zero
-                            }
-                        }
+            .pointerInput(Unit) {
+                detectTransformGestures(panZoomLock = false) { _, pan, zoom, _ ->
+                    val newScale = (scale * zoom).coerceIn(1f, 4.5f)
+                    if (newScale > 1.05f || scale > 1.05f) {
+                        scale = newScale
+                        val maxOffsetX = 800f * (scale - 1f)
+                        val maxOffsetY = 800f * (scale - 1f)
+                        offset = Offset(
+                            x = (offset.x + pan.x * scale).coerceIn(-maxOffsetX, maxOffsetX),
+                            y = (offset.y + pan.y * scale).coerceIn(-maxOffsetY, maxOffsetY)
+                        )
+                    } else {
+                        scale = 1f
+                        offset = Offset.Zero
                     }
-                } else {
-                    Modifier
                 }
-            ),
+            },
         contentAlignment = Alignment.Center
     ) {
         AsyncImage(
@@ -382,24 +383,62 @@ fun KidsZoomableImage(
             contentScale = ContentScale.Fit,
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer(
-                    scaleX = scale,
-                    scaleY = scale,
-                    translationX = offset.x,
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    translationX = offset.x
                     translationY = offset.y
-                )
+                }
         )
     }
 }
 
-// Built-in Native Android Video Player for Kids
+// Built-in Native Android Video Player with Interactive Timeline for Kids
 @Composable
 fun KidsVideoPlayer(uri: Uri) {
     val context = LocalContext.current
-    var isPlaying by remember { mutableStateOf(false) }
+    var videoViewRef by remember { mutableStateOf<VideoView?>(null) }
+    var isPlaying by remember { mutableStateOf(true) }
+    var currentPositionMs by remember { mutableLongStateOf(0L) }
+    var totalDurationMs by remember { mutableLongStateOf(0L) }
+    var showControls by remember { mutableStateOf(true) }
+
+    // Live progress tracker loop
+    LaunchedEffect(videoViewRef, isPlaying) {
+        while (true) {
+            videoViewRef?.let { vv ->
+                try {
+                    currentPositionMs = vv.currentPosition.toLong().coerceAtLeast(0L)
+                    val dur = vv.duration.toLong()
+                    if (dur > 0) totalDurationMs = dur
+                    isPlaying = vv.isPlaying
+                } catch (e: Exception) {
+                    // ignore
+                }
+            }
+            kotlinx.coroutines.delay(250L)
+        }
+    }
+
+    // Auto-hide controls after 3.5s
+    LaunchedEffect(showControls, isPlaying) {
+        if (showControls && isPlaying) {
+            kotlinx.coroutines.delay(3500L)
+            showControls = false
+        }
+    }
+
+    fun formatTime(ms: Long): String {
+        val totalSec = ms / 1000
+        val m = totalSec / 60
+        val s = totalSec % 60
+        return String.format("%02d:%02d", m, s)
+    }
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable { showControls = !showControls },
         contentAlignment = Alignment.Center
     ) {
         AndroidView(
@@ -408,16 +447,155 @@ fun KidsVideoPlayer(uri: Uri) {
                     setVideoURI(uri)
                     setOnPreparedListener { mp ->
                         mp.isLooping = true
+                        totalDurationMs = duration.toLong()
                         start()
                         isPlaying = true
                     }
                     setOnCompletionListener {
                         isPlaying = false
                     }
+                    videoViewRef = this
                 }
             },
             modifier = Modifier.fillMaxSize()
         )
+
+        // Center Play/Pause Overlay Button
+        AnimatedVisibility(
+            visible = showControls || !isPlaying,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            IconButton(
+                onClick = {
+                    videoViewRef?.let { vv ->
+                        if (vv.isPlaying) {
+                            vv.pause()
+                            isPlaying = false
+                        } else {
+                            vv.start()
+                            isPlaying = true
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.65f))
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "To'xtatish" else "Ijro",
+                    tint = Color.White,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+        }
+
+        // Bottom Interactive Timeline & Controls Bar
+        AnimatedVisibility(
+            visible = showControls || !isPlaying,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 24.dp, start = 16.dp, end = 16.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFF0F1420).copy(alpha = 0.88f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+                    // Timeline Slider
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = formatTime(currentPositionMs),
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Slider(
+                            value = if (totalDurationMs > 0) currentPositionMs.toFloat() else 0f,
+                            onValueChange = { newPos ->
+                                currentPositionMs = newPos.toLong()
+                                videoViewRef?.seekTo(newPos.toInt())
+                            },
+                            valueRange = 0f..(totalDurationMs.toFloat().coerceAtLeast(1f)),
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFF38BDF8),
+                                activeTrackColor = Color(0xFF38BDF8),
+                                inactiveTrackColor = Color.White.copy(alpha = 0.2f)
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = formatTime(totalDurationMs),
+                            color = Color(0xFF94A3B8),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    // Quick action buttons (Rewind 10s, Play/Pause, Forward 10s)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = {
+                                videoViewRef?.let { vv ->
+                                    val newPos = (vv.currentPosition - 10000).coerceAtLeast(0)
+                                    vv.seekTo(newPos)
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Replay10, contentDescription = "10s ortga", tint = Color.White)
+                        }
+
+                        IconButton(
+                            onClick = {
+                                videoViewRef?.let { vv ->
+                                    if (vv.isPlaying) {
+                                        vv.pause()
+                                        isPlaying = false
+                                    } else {
+                                        vv.start()
+                                        isPlaying = true
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                if (isPlaying) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
+                                contentDescription = "Play/Pause",
+                                tint = Color(0xFF38BDF8),
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                videoViewRef?.let { vv ->
+                                    val newPos = (vv.currentPosition + 10000).coerceAtMost(vv.duration)
+                                    vv.seekTo(newPos)
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Forward10, contentDescription = "10s oldinga", tint = Color.White)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
