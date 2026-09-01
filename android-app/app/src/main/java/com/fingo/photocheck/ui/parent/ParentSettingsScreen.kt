@@ -550,15 +550,20 @@ fun ParentSettingsScreen(
                             Button(
                                 onClick = {
                                     isCheckingUpdate = true
-                                    updateStatusMessage = "Yangilanishlar tekshirilmoqda..."
+                                    updateStatusMessage = "GitHub Releases tekshirilmoqda..."
                                     coroutineScope.launch {
-                                        val info = UpdateManager.checkForUpdate(context)
+                                        val result = UpdateManager.checkForUpdates(context)
                                         isCheckingUpdate = false
-                                        if (info != null && info.hasUpdate) {
-                                            updateInfoState = info
-                                            showUpdateModal = true
-                                        } else {
-                                            updateStatusMessage = "Sizda eng so'nggi versiya o'rnatilgan (v$currentAppVersion) ✅"
+                                        result.onSuccess { info ->
+                                            if (info.hasUpdate) {
+                                                updateInfoState = info
+                                                showUpdateModal = true
+                                                updateStatusMessage = "Yangi versiya mavjud: v${info.latestVersion} 🚀"
+                                            } else {
+                                                updateStatusMessage = "Sizda eng so'nggi versiya o'rnatilgan (v$currentAppVersion). GitHub-dagi oxirgi reliz: v${info.latestVersion} ✅"
+                                            }
+                                        }.onFailure { err ->
+                                            updateStatusMessage = "Tekshirishda xatolik: ${err.localizedMessage ?: "Internetga ulanishni tekshiring"} ⚠️"
                                         }
                                     }
                                 },
