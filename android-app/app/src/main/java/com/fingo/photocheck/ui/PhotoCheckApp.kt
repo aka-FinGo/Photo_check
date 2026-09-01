@@ -703,14 +703,11 @@ fun SlideboxCardSorterScreen(
                 )
 
                 // Trash overlay badge on drag up
-                AnimatedVisibility(
-                    visible = isDraggingUp,
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 24.dp),
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
+                if (isDraggingUp) {
                     Box(
                         modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 24.dp)
                             .clip(RoundedCornerShape(20.dp))
                             .background(Color(0xFFEF4444).copy(alpha = 0.9f))
                             .padding(horizontal = 18.dp, vertical = 8.dp)

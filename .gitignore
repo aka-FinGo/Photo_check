@@ -1,13 +1,71 @@
+# ==========================================
+# 🚀 PhotoCheck Git Ignore Rules
+# ==========================================
+
+# Built application files
+*.apk
+*.ap_
+*.aab
+*.dex
+
+# Files for the ART/Dalvik VM
+*.class
+
+# Java/Kotlin byte code
+*.class
+*.kotlin_module
+
+# Gradle files & caches
+.gradle/
+build/
+*/build/
+android-app/build/
+android-app/app/build/
+.gradle_home/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Log files
+*.log
+build_log.txt
+
+# Android Studio / IntelliJ IDEA
+.idea/
 *.iml
-.gradle
-/local.properties
-/.idea
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/dictionaries/
+.idea/runConfigurations/
+
+# OS generated files
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-android-app/.gradle
-android-app/app/build
-android-app/build
-dist/
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Profiler & Captures
+captures/
+output.json
+
+# Temporary scripts / directories
+graphify-out/
+__pycache__/
+*.py[cod]
+*$py.class
+*.tmp
+*.bak
+*.swp
+
+# Keystore Security: Ignore personal keys, but ALWAYS keep the official photocheck.jks release key
+*.key
+*.keystore
+!android-app/app/keystore/photocheck.jks

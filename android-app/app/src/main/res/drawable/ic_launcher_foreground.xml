@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Photo Card Background Tilt -->
+    <path
+        android:pathData="M32,30 h44 a8,8 0 0 1 8,8 v40 a8,8 0 0 1 -8,8 h-44 a8,8 0 0 1 -8,-8 v-40 a8,8 0 0 1 8,-8 z"
+        android:fillColor="#1E293B" />
+        
+    <!-- Photo Frame Glass Border -->
+    <path
+        android:pathData="M32,30 h44 a8,8 0 0 1 8,8 v40 a8,8 0 0 1 -8,8 h-44 a8,8 0 0 1 -8,-8 v-40 a8,8 0 0 1 8,-8 z"
+        android:strokeWidth="2.5">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:startX="24"
+                android:startY="30"
+                android:endX="84"
+                android:endY="86"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF38BDF8" />
+                <item android:offset="1.0" android:color="#FF6366F1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Mountain Landscape inside card -->
+    <path
+        android:pathData="M28,68 L44,52 L56,64 L66,54 L80,68 L80,72 a4,4 0 0 1 -4,4 L32,76 a4,4 0 0 1 -4,-4 Z"
+        android:fillColor="#334155" />
+
+    <!-- Sun / Balloon Dot -->
+    <path
+        android:pathData="M42,42 m-5,0 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0"
+        android:fillColor="#F59E0B" />
+
+    <!-- Radiant Checkmark Badge (Right Side) -->
+    <path
+        android:pathData="M70,64 m-14,0 a14,14 0 1 0 28,0 a14,14 0 1 0 -28,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="56"
+                android:startY="50"
+                android:endX="84"
+                android:endY="78"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF10B981" />
+                <item android:offset="1.0" android:color="#FF059669" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Checkmark Icon -->
+    <path
+        android:pathData="M63,64 L68,69 L77,59"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+</vector>

@@ -1,6 +1,6 @@
 # 📱 PhotoCheck Kids & 1:1 Slidebox Pro — Loyiha Holati va Arxitekturasi (HANDOFF)
 
-Ushbu hujjat loyihaning to'liq arxitekturasi, 1:1 Original Slidebox Sorter, Kids Safe Mode, In-App Updater, Keystore imzolash, GitHub Pages va Donat tizimini o'z ichiga oladi.
+Ushbu hujjat loyihaning to'liq arxitekturasi, 1:1 Original Slidebox Sorter, Kids Safe Mode, In-App Updater, Keystore imzolash, App Icon (Adaptive & Favicon), GitHub Pages va Donat tizimini o'z ichiga oladi.
 
 ---
 
@@ -8,20 +8,23 @@ Ushbu hujjat loyihaning to'liq arxitekturasi, 1:1 Original Slidebox Sorter, Kids
 * **Loyiha nomi:** PhotoCheck (1:1 Original Slidebox Sorter + Kids Safe Gallery & Parental Control)
 * **Paket nomi:** `com.fingo.photocheck`
 * **Jonli Demo (GitHub Pages):**
-  - Asosiy URL: [https://aka-fingo.github.io/Photo_check/](https://aka-fingo.github.io/Photo_check/)
-  - To'g'ridan-to'g'ri Demo: [https://aka-fingo.github.io/Photo_check/web-demo/](https://aka-fingo.github.io/Photo_check/web-demo/)
+  - [https://aka-fingo.github.io/Photo_check/](https://aka-fingo.github.io/Photo_check/)
+  - [https://aka-fingo.github.io/Photo_check/web-demo/](https://aka-fingo.github.io/Photo_check/web-demo/)
 
 ---
 
-## 2. Yangi Qo'shilgan Imkoniyatlar
-1. 🌐 **GitHub Pages uchun To'liq Moslashtirilgan Web Demo:**
-   - **Kompyuterda:** Zamonaviy Dynamic Island, shisha effektli korpus va smartfon shaklidagi real interaktiv ramka.
-   - **Smartfonda:** 100% to'liq ekranga moslashgan (PWA / Mobile web app) qulay mobil ilova tajribasi.
-2. 💖 **Donat va Homiylik Sahifasi (Donate / Support Page):**
-   - 🇺🇿 **UzCard / Humo:** Karta raqami va bitta bosishda nusxa olish (`8600 5704 1234 5678`).
-   - 🌍 **Xalqaro:** Buy Me a Coffee va Boosty havolalari.
-   - 🪙 **Kriptovalyuta:** USDT TRC20 va TON hamyonlari (bir zumda nusxalash bilan).
-3. 🎴 **1:1 Original Slidebox Sorter:**
-   - Swipe Up to Trash (animatsiya bilan), Pastki albomlar paneli, Favorite, Undo va Savat menejeri.
-4. 👶 **Bolalar Xavfsiz Galereyasi:**
-   - Biometrik qulf, oq ro'yxatdagi albomlar va taymer.
+## 2. Amalga Oshirilgan Yangilanishlar:
+1. 🧹 **Repozitoriyani Tozalash va Professional `.gitignore`:**
+   - Barcha keraksiz vaqtinchalik fayllar, skrinshotlar, `graphify-out/`, `build_log.txt` va `web_chat/` o'chirildi.
+   - Mukammal `.gitignore` yaratildi (Gradle, build, logs, Android Studio keshlarini chetlab o'tadi, lekin `photocheck.jks` release kalitini xavfsiz saqlaydi).
+2. 🎨 **Ilova Ikonkalari (App Icons & Favicon):**
+   - **Android Adaptive Icon (Vector XML):**
+     * `drawable/ic_launcher_background.xml` (qorong'u neon gradient)
+     * `drawable/ic_launcher_foreground.xml` (Photo frame, kamera linzasi va yorqin checkmark/qalqon ramzi)
+     * `mipmap-anydpi-v26/ic_launcher.xml` va `ic_launcher_round.xml` (Android 8.0 - 15 uchun)
+     * `drawable/ic_launcher.xml` (Legacy Android uchun)
+   - **Web Favicon:** `web-demo/favicon.svg` yaratilib, veb sahifalarga ulandi.
+3. 🛠️ **Build xatosi tuzatildi:**
+   - `PhotoCheckApp.kt` da `AnimatedVisibility` sintaksis xatosi bartaraf etildi, `compileReleaseKotlin` 100% muvaffaqiyatli o'tmoqda.
+4. 💖 **Donat va Homiylik Sahifasi:**
+   - UzCard/Humo karta raqami, xalqaro va kriptovalyuta (USDT TRC20, TON) orqali qo'llab-quvvatlash imkoniyati.
