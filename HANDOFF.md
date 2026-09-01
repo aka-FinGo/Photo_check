@@ -40,6 +40,10 @@ Qo'shimcha rasmiy ro'yxat: [`FEATURES_REGISTRY.md`](file:///e:/Loyihalarim/GitHu
 6. 📦 **APK Hajmi va Build Optimallashuvi:**
    - `build.gradle.kts` da R8 / Minification yoqildi, APK hajmi ~15 MB gacha tushirildi.
 
+7. 🚀 **In-App Updater HTTP 403 Yechimi va Gamburger Drawer Integratsiyasi:**
+   - `UpdateManager.kt` da GitHub API 403 xatosiga qarshi avtomatik zero-rate-limit 302 redirect fallback kiritildi.
+   - Sozlamalar pastidagi ortiqcha karta olib tashlanib, yangilanishni tekshirish Gamburger menyusidagi (Drawer) "Dastur Yangilanishi" orqali to'liq ishlaydigan qilindi.
+
 ---
 
 ## 3. GitHub Actions CI/CD va Reliz Tizimi:

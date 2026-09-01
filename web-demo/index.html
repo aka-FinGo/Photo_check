@@ -276,19 +276,6 @@
                         </div>
                     </div>
 
-                    <!-- In-App Update Hub Card -->
-                    <div class="setting-card">
-                        <div class="setting-row">
-                            <div>
-                                <h3>🔄 Dastur Yangilanishi</h3>
-                                <p id="update-hub-status">v1.0.03 • Eng so'nggi rasmiy versiya</p>
-                            </div>
-                            <button class="btn btn-outline btn-sm" id="btn-check-update-hub">
-                                <i class="fas fa-rotate"></i> Tekshirish
-                            </button>
-                        </div>
-                    </div>
-
                     <div class="setting-card">
                         <div class="setting-row">
                             <div>
@@ -400,6 +387,9 @@
                         </button>
                         <button class="drawer-item" onclick="app.openAboutModal()">
                             <i class="fas fa-circle-info text-indigo"></i> Dastur Haqida
+                        </button>
+                        <button class="drawer-item" onclick="app.closeDrawer(); app.checkUpdateFromDrawer();">
+                            <i class="fas fa-rotate text-emerald"></i> Dastur Yangilanishi
                         </button>
                         <button class="drawer-item" onclick="app.closeDrawer(); app.openDonateScreen();">
                             <i class="fas fa-heart text-danger"></i> Donat & Homiylik

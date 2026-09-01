@@ -117,7 +117,7 @@ fun UpdateDialog(
                         is UpdateDialogState.ReadyToInstall -> "Yangilanish Tayyor!"
                         is UpdateDialogState.Downloading -> "Yuklab Olinmoqda..."
                         is UpdateDialogState.Error -> "Yuklashda Xatolik"
-                        else -> "Yangi Versiya Mavjud 🚀"
+                        else -> if (updateInfo.hasUpdate) "Yangi Versiya Mavjud 🚀" else "Eng So'nggi Versiya O'rnatilgan ✅"
                     },
                     color = Color.White,
                     fontSize = 18.sp,
@@ -217,46 +217,57 @@ fun UpdateDialog(
                         Spacer(modifier = Modifier.height(18.dp))
 
                         // Action Buttons
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = onDismiss,
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF9CA3AF))
+                        if (updateInfo.hasUpdate && updateInfo.downloadUrl.isNotBlank()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Text("Keyinroq", fontSize = 12.sp)
-                            }
+                                OutlinedButton(
+                                    onClick = onDismiss,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF9CA3AF))
+                                ) {
+                                    Text("Keyinroq", fontSize = 12.sp)
+                                }
 
-                            Button(
-                                onClick = {
-                                    state = UpdateDialogState.Downloading(updateInfo, 0f, 0L, updateInfo.apkSize)
-                                    coroutineScope.launch {
-                                        val result = UpdateManager.downloadApk(
-                                            context = context,
-                                            downloadUrl = updateInfo.downloadUrl,
-                                            onProgress = { progress, downloaded, total ->
-                                                state = UpdateDialogState.Downloading(updateInfo, progress, downloaded, total)
-                                            }
-                                        )
-                                        result.onSuccess { file ->
-                                            state = UpdateDialogState.ReadyToInstall(updateInfo, file)
-                                            UpdateManager.installApk(context, file)
-                                        }.onFailure { err ->
-                                            state = UpdateDialogState.Error(
-                                                updateInfo,
-                                                err.localizedMessage ?: "Noma'lum xatolik"
+                                Button(
+                                    onClick = {
+                                        state = UpdateDialogState.Downloading(updateInfo, 0f, 0L, updateInfo.apkSize)
+                                        coroutineScope.launch {
+                                            val result = UpdateManager.downloadApk(
+                                                context = context,
+                                                downloadUrl = updateInfo.downloadUrl,
+                                                onProgress = { progress, downloaded, total ->
+                                                    state = UpdateDialogState.Downloading(updateInfo, progress, downloaded, total)
+                                                }
                                             )
+                                            result.onSuccess { file ->
+                                                state = UpdateDialogState.ReadyToInstall(updateInfo, file)
+                                                UpdateManager.installApk(context, file)
+                                            }.onFailure { err ->
+                                                state = UpdateDialogState.Error(
+                                                    updateInfo,
+                                                    err.localizedMessage ?: "Noma'lum xatolik"
+                                                )
+                                            }
                                         }
-                                    }
-                                },
-                                modifier = Modifier.weight(1.3f),
+                                    },
+                                    modifier = Modifier.weight(1.3f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                                ) {
+                                    Text("Yangilash ⬇️", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        } else {
+                            Button(
+                                onClick = onDismiss,
+                                modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
                             ) {
-                                Text("Yangilash ⬇️", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Tushunarli ✅", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

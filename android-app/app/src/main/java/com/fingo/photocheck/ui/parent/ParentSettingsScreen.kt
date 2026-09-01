@@ -164,15 +164,15 @@ fun ParentSettingsScreen(
                             onClick = {
                                 coroutineScope.launch { drawerState.close() }
                                 isCheckingUpdate = true
-                                updateStatusMessage = "Tekshirilmoqda..."
+                                Toast.makeText(context, "Yangilanishlar tekshirilmoqda... ⏳", Toast.LENGTH_SHORT).show()
                                 coroutineScope.launch {
-                                    val info = UpdateManager.checkForUpdate(context)
+                                    val result = UpdateManager.checkForUpdates(context)
                                     isCheckingUpdate = false
-                                    if (info != null && info.hasUpdate) {
+                                    result.onSuccess { info ->
                                         updateInfoState = info
                                         showUpdateModal = true
-                                    } else {
-                                        updateStatusMessage = "Sizda eng so'nggi versiya o'rnatilgan (v$currentAppVersion) ✅"
+                                    }.onFailure { err ->
+                                        Toast.makeText(context, "Xatolik: ${err.localizedMessage ?: "GitHub-ga ulanib bo'lmadi"}", Toast.LENGTH_LONG).show()
                                     }
                                 }
                             },
@@ -596,72 +596,6 @@ fun ParentSettingsScreen(
                             }
                         }
                     }
-                }
-
-                // Section 6: In-App Update Hub Card
-                item {
-                    Surface(
-                        shape = RoundedCornerShape(22.dp),
-                        color = Color(0xFF141A28),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(18.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = Color(0xFF10B981))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("🔄 Dastur Yangilanishi", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                }
-                                Text("v$currentAppVersion", color = Color(0xFF10B981), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                updateStatusMessage ?: "Ilovani to'g'ridan-to'g'ri yangilab borish uchun tekshiring.",
-                                color = Color(0xFF94A3B8),
-                                fontSize = 12.sp
-                            )
-                            Spacer(modifier = Modifier.height(14.dp))
-                            Button(
-                                onClick = {
-                                    isCheckingUpdate = true
-                                    updateStatusMessage = "GitHub Releases tekshirilmoqda..."
-                                    coroutineScope.launch {
-                                        val result = UpdateManager.checkForUpdates(context)
-                                        isCheckingUpdate = false
-                                        result.onSuccess { info ->
-                                            if (info.hasUpdate) {
-                                                updateInfoState = info
-                                                showUpdateModal = true
-                                                updateStatusMessage = "Yangi versiya mavjud: v${info.latestVersion} 🚀"
-                                            } else {
-                                                updateStatusMessage = "Sizda eng so'nggi versiya o'rnatilgan (v$currentAppVersion). GitHub-dagi oxirgi reliz: v${info.latestVersion} ✅"
-                                            }
-                                        }.onFailure { err ->
-                                            updateStatusMessage = "Tekshirishda xatolik: ${err.localizedMessage ?: "Internetga ulanishni tekshiring"} ⚠️"
-                                        }
-                                    }
-                                },
-                                enabled = !isCheckingUpdate,
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                if (isCheckingUpdate) {
-                                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Tekshirilmoqda...", fontWeight = FontWeight.Bold)
-                                } else {
-                                    Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.Black)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Yangilanishlarni Tekshirish", color = Color.Black, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
                     }
                 }
             }

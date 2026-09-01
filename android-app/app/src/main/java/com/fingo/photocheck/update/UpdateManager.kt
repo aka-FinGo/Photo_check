@@ -27,97 +27,132 @@ object UpdateManager {
     suspend fun checkForUpdate(context: Context): UpdateInfo? = checkForUpdates(context).getOrNull()
 
     suspend fun checkForUpdates(context: Context): Result<UpdateInfo> = withContext(Dispatchers.IO) {
-        try {
-            val currentVersion = try {
-                val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-                pInfo.versionName ?: "1.0.01"
-            } catch (e: Exception) {
-                "1.0.01"
-            }
+        val currentVersion = try {
+            val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            pInfo.versionName ?: "1.0.01"
+        } catch (e: Exception) {
+            "1.0.01"
+        }
 
+        // --- ATTEMPT 1: GitHub REST API with browser-grade User-Agent ---
+        try {
             val url = URL(GITHUB_LATEST_RELEASE_URL)
             val connection = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 setRequestProperty("Accept", "application/vnd.github.v3+json")
-                setRequestProperty("User-Agent", "PhotoCheck-Android-App")
-                connectTimeout = 10000
-                readTimeout = 15000
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36 PhotoCheck/1.0")
+                connectTimeout = 8000
+                readTimeout = 10000
             }
 
             val responseCode = connection.responseCode
-            if (responseCode !in 200..299) {
-                return@withContext Result.failure(
-                    Exception("Server javobi xato: HTTP $responseCode")
-                )
-            }
+            if (responseCode in 200..299) {
+                val jsonString = connection.inputStream.bufferedReader().use { it.readText() }
+                val jsonObject = JSONObject(jsonString)
 
-            val jsonString = connection.inputStream.bufferedReader().use { it.readText() }
-            val jsonObject = JSONObject(jsonString)
+                val tagName = jsonObject.optString("tag_name", "").trim()
+                val changelog = jsonObject.optString("body", "Yangi imkoniyatlar va yaxshilanishlar.").trim()
+                val publishedAt = jsonObject.optString("published_at", "")
 
-            val tagName = jsonObject.optString("tag_name", "").trim()
-            val changelog = jsonObject.optString("body", "Yangi imkoniyatlar va yaxshilanishlar.").trim()
-            val publishedAt = jsonObject.optString("published_at", "")
+                var downloadUrl = ""
+                var apkSize = 0L
 
-            var downloadUrl = ""
-            var apkSize = 0L
-
-            val assets = jsonObject.optJSONArray("assets")
-            if (assets != null) {
-                var selectedAsset: JSONObject? = null
-                // Tier 1: Exact match for PhotoCheck.apk (Primary Universal build)
-                for (i in 0 until assets.length()) {
-                    val asset = assets.getJSONObject(i)
-                    val name = asset.optString("name", "")
-                    if (name.equals("PhotoCheck.apk", ignoreCase = true)) {
-                        selectedAsset = asset
-                        break
-                    }
-                }
-                // Tier 2: Versioned PhotoCheck APK or Universal APK
-                if (selectedAsset == null) {
+                val assets = jsonObject.optJSONArray("assets")
+                if (assets != null) {
+                    var selectedAsset: JSONObject? = null
                     for (i in 0 until assets.length()) {
                         val asset = assets.getJSONObject(i)
                         val name = asset.optString("name", "")
-                        if ((name.startsWith("PhotoCheck", ignoreCase = true) || name.contains("universal", ignoreCase = true)) && name.endsWith(".apk", ignoreCase = true)) {
+                        if (name.equals("PhotoCheck.apk", ignoreCase = true)) {
                             selectedAsset = asset
                             break
                         }
                     }
-                }
-                // Tier 3: Fallback to any valid APK asset
-                if (selectedAsset == null) {
-                    for (i in 0 until assets.length()) {
-                        val asset = assets.getJSONObject(i)
-                        val name = asset.optString("name", "")
-                        if (name.endsWith(".apk", ignoreCase = true)) {
-                            selectedAsset = asset
-                            break
+                    if (selectedAsset == null) {
+                        for (i in 0 until assets.length()) {
+                            val asset = assets.getJSONObject(i)
+                            val name = asset.optString("name", "")
+                            if ((name.startsWith("PhotoCheck", ignoreCase = true) || name.contains("universal", ignoreCase = true)) && name.endsWith(".apk", ignoreCase = true)) {
+                                selectedAsset = asset
+                                break
+                            }
                         }
                     }
+                    if (selectedAsset == null) {
+                        for (i in 0 until assets.length()) {
+                            val asset = assets.getJSONObject(i)
+                            val name = asset.optString("name", "")
+                            if (name.endsWith(".apk", ignoreCase = true)) {
+                                selectedAsset = asset
+                                break
+                            }
+                        }
+                    }
+                    if (selectedAsset != null) {
+                        downloadUrl = selectedAsset.optString("browser_download_url", "")
+                        apkSize = selectedAsset.optLong("size", 0L)
+                    }
                 }
-                if (selectedAsset != null) {
-                    downloadUrl = selectedAsset.optString("browser_download_url", "")
-                    apkSize = selectedAsset.optLong("size", 0L)
+
+                val cleanLatest = tagName.removePrefix("v").removePrefix("V")
+                val finalDownloadUrl = downloadUrl.ifBlank {
+                    "https://github.com/aka-FinGo/Photo_check/releases/download/$tagName/PhotoCheck.apk"
                 }
-            }
+                val hasUpdate = UpdateInfo.isNewer(cleanLatest, currentVersion)
 
-            val cleanLatest = tagName.removePrefix("v").removePrefix("V")
-            val hasUpdate = UpdateInfo.isNewer(cleanLatest, currentVersion) && downloadUrl.isNotBlank()
-
-            Result.success(
-                UpdateInfo(
-                    latestVersion = cleanLatest.ifBlank { currentVersion },
-                    currentVersion = currentVersion,
-                    changelog = changelog,
-                    downloadUrl = downloadUrl,
-                    apkSize = apkSize,
-                    hasUpdate = hasUpdate,
-                    publishedAt = publishedAt
+                return@withContext Result.success(
+                    UpdateInfo(
+                        latestVersion = cleanLatest.ifBlank { currentVersion },
+                        currentVersion = currentVersion,
+                        changelog = changelog,
+                        downloadUrl = finalDownloadUrl,
+                        apkSize = apkSize,
+                        hasUpdate = hasUpdate,
+                        publishedAt = publishedAt
+                    )
                 )
-            )
-        } catch (e: Exception) {
-            Result.failure(e)
+            }
+        } catch (_: Exception) {
+            // Proceed to Fallback
         }
+
+        // --- ATTEMPT 2: Direct GitHub 302 Redirect Inspection (100% Rate-Limit Free) ---
+        try {
+            val directUrl = URL("https://github.com/aka-FinGo/Photo_check/releases/latest")
+            val directConn = (directUrl.openConnection() as HttpURLConnection).apply {
+                instanceFollowRedirects = false
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36")
+                connectTimeout = 8000
+                readTimeout = 8000
+            }
+
+            val loc = directConn.getHeaderField("Location")
+            if (!loc.isNullOrBlank()) {
+                val tag = loc.substringAfterLast("/")
+                val cleanLatest = tag.removePrefix("v").removePrefix("V").trim()
+                val downloadUrl = "https://github.com/aka-FinGo/Photo_check/releases/download/$tag/PhotoCheck.apk"
+                val hasUpdate = UpdateInfo.isNewer(cleanLatest, currentVersion)
+
+                return@withContext Result.success(
+                    UpdateInfo(
+                        latestVersion = cleanLatest,
+                        currentVersion = currentVersion,
+                        changelog = "Yangi reliz: v$cleanLatest. Dasturni yangilash tavsiya etiladi.",
+                        downloadUrl = downloadUrl,
+                        apkSize = 0L,
+                        hasUpdate = hasUpdate,
+                        publishedAt = ""
+                    )
+                )
+            }
+        } catch (e2: Exception) {
+            return@withContext Result.failure(
+                Exception("Internetga ulanishni tekshiring: ${e2.localizedMessage ?: "GitHub serveriga ulanib bo'lmadi"}")
+            )
+        }
+
+        Result.failure(Exception("GitHub-dan so'nggi versiyani aniqlab bo'lmadi"))
     }
 
     /**

@@ -42,7 +42,7 @@ Ushbu hujjat loyihadagi har bir funksiya, rejim, imo-ishora (gesture) va tugmala
 | **📌 Ekran Qadash Boshqaruvi** | Ota-ona sozlamalarida "Ilovani Ekranga Qadash 📌" va barmoq izi bilan "Qadashni Bekor Qilish 🔓" tugmalari. | `ParentSettingsScreen.kt` |
 | **`[✓✓ Barchasini Tanlash]`** | Katta to'liq enli ko'k tugma — barcha albomlarni bitta bosishda ruxsat etilganlar ro'yxatiga oladi. | `ParentSettingsScreen.kt` |
 | **`[⨂ Bekor Qilish]`** | Katta to'liq enli qizil tugma — barcha belgilangan albomlarni bitta bosishda tozalaydi. | `ParentSettingsScreen.kt` |
-| **In-App Updater** | GitHub Releases orqali yangi versiyani tekshirish, yuklab olish va o'rnatish. | `UpdateManager.kt` |
+| **In-App Updater** | Gamburger Drawer ichidagi "Dastur Yangilanishi" orqali yangi versiyani tekshirish (HTTP 403 ga qarshi avtomatik 302 fallback bilan). | `UpdateManager.kt` |
 
 ---
 

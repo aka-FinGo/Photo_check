@@ -1077,6 +1077,14 @@ class PhotoCheckApp {
         document.getElementById('about-modal')?.classList.add('active');
     }
 
+    checkUpdateFromDrawer() {
+        this.closeDrawer();
+        this.showToast('Yangilanishlar tekshirilmoqda... ⏳');
+        setTimeout(() => {
+            this.showToast('Sizda eng so\'nggi versiya o\'rnatilgan (v1.0.03) ✅');
+        }, 1000);
+    }
+
     updateBentoStats() {
         const countEl = document.getElementById('bento-whitelisted-count');
         const timerEl = document.getElementById('bento-timer-value');
