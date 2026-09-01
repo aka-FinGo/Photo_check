@@ -398,8 +398,12 @@ class PhotoCheckApp {
 
         const imgEl = content.querySelector('img');
         if (imgEl) {
+            imgEl.draggable = false;
+            imgEl.ondragstart = (e) => e.preventDefault();
             imgEl.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)';
             imgEl.style.transformOrigin = 'center center';
+            imgEl.style.userSelect = 'none';
+            imgEl.style.webkitUserDrag = 'none';
 
             content.ondblclick = () => {
                 currentScale = currentScale > 1 ? 1 : 2.5;

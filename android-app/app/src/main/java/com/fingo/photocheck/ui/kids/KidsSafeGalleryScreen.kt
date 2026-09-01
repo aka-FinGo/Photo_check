@@ -331,7 +331,7 @@ fun KidsSystemGalleryViewer(
     }
 }
 
-// Pinch-to-zoom & Double-tap zoomable image component
+// Pinch-to-zoom & Double-tap zoomable image component (allows HorizontalPager swiping when not zoomed)
 @Composable
 fun KidsZoomableImage(
     model: Any?,
@@ -340,6 +340,7 @@ fun KidsZoomableImage(
 ) {
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
+    val isZoomed = scale > 1.05f
 
     Box(
         modifier = Modifier
@@ -353,19 +354,26 @@ fun KidsZoomableImage(
                     }
                 )
             }
-            .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    scale = (scale * zoom).coerceIn(1f, 4f)
-                    if (scale > 1f) {
-                        offset = Offset(
-                            x = offset.x + pan.x,
-                            y = offset.y + pan.y
-                        )
-                    } else {
-                        offset = Offset.Zero
+            .then(
+                if (isZoomed) {
+                    Modifier.pointerInput(Unit) {
+                        detectTransformGestures { _, pan, zoom, _ ->
+                            scale = (scale * zoom).coerceIn(1f, 4f)
+                            if (scale > 1.05f) {
+                                offset = Offset(
+                                    x = offset.x + pan.x,
+                                    y = offset.y + pan.y
+                                )
+                            } else {
+                                scale = 1f
+                                offset = Offset.Zero
+                            }
+                        }
                     }
+                } else {
+                    Modifier
                 }
-            },
+            ),
         contentAlignment = Alignment.Center
     ) {
         AsyncImage(

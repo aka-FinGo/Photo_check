@@ -1,6 +1,6 @@
 # 📱 PhotoCheck Kids & 1:1 Slidebox Pro — Loyiha Holati va Arxitekturasi (HANDOFF)
 
-Ushbu hujjat loyihaning to'liq arxitekturasi, Hamburger Boshqaruv Menyusi, Bento Stats Vidjeti, Interactive Guide & About dialoglari, Zoom (Pinch/Double-tap), GitHub Pages Landing Page, 1:1 Mi Gallery Style Kids Viewer, Biometrik Chiqish Himoyasi, 1:1 Slidebox Sorter, In-App Updater va Donat tizimini o'z ichiga oladi.
+Ushbu hujjat loyihaning to'liq arxitekturasi, Rasmlar va Videolar Uchun Mukammal Gorizontal Surish (Swipe), Zoom (Pinch/Double-tap), Hamburger Boshqaruv Menyusi, Bento Stats Vidjeti, Interactive Guide & About dialoglari, GitHub Pages Landing Page, Biometrik Chiqish Himoyasi, 1:1 Slidebox Sorter, In-App Updater va Donat tizimini o'z ichiga oladi.
 
 ---
 
@@ -13,20 +13,11 @@ Ushbu hujjat loyihaning to'liq arxitekturasi, Hamburger Boshqaruv Menyusi, Bento
 
 ---
 
-## 2. Yangi Imkoniyatlar va Boshqaruv Tizimi:
-1. 🍔 **Gamburger Navigatsiya Menyusi (Navigation Drawer):**
-   - Ota-ona sozlamalari panelida zamonaviy `ModalNavigationDrawer` yaratildi.
-   - Bo'limlar:
-     * 🛡️ **Asosiy Xavfsizlik Sozlamalari**
-     * 📖 **Qo'llanma & Yo'riqnoma (Interactive Guide)**
-     * 🔄 **Dastur Yangilanishi (In-App Update Hub)**
-     * ℹ️ **Dastur Haqida (About App)**
-     * 💖 **Donat & Qo'llab-quvvatlash**
-2. 📊 **Bento Grid Analytics Vidjeti:**
-   - Oq ro'yxatdagi albomlar va fayllar soni, taymer holati.
-3. 🔍 **Pinch-to-Zoom va Double-Tap Zoom:**
-   - 1x dan 4x gacha erkin kattalashtirish va surish (pan).
-4. 🔒 **Chiqish va Fondan Qaytishda Qat'iy Biometrik Qulf (`MainActivity.kt`):**
-   - Bola ilovadan chiqa olmaydi, ota-ona barmoq izi/PIN talab etiladi.
-5. 🎴 **1:1 Original Slidebox Sorter:**
-   - Swipe up to Trash, Pastki albomlar paneli orqali bir zumda saralash, Favorite va Undo.
+## 2. Yangi Tuzatish va Imkoniyatlar:
+1. 🔄 **Rasmlar va Videolarni Gorizontal Surish (Swipe) Muammosi To'liq Bartaraf Etildi:**
+   - **Android (`KidsSafeGalleryScreen.kt`):** `KidsZoomableImage` oddiy holatda (`scale <= 1.05f`) gorizontal surishni ushlab qolmasligi ta'minlandi. Natijada `HorizontalPager` orqali rasmlar ham, videolar ham birdek silliq va qulay o'tadi. Faqat rasm zoom qilingandagina pan faollashadi.
+   - **Web Demo (`web-demo/app.js`):** Brauzerning standart rasm tortish (ghost image drag) xulqi bekor qilinib (`draggable = false`, `ondragstart = preventDefault`), rasmlar ham sensor/sichqoncha orqali keyingisiga bir zumda o'tadigan qilindi.
+2. 🍔 **Gamburger Navigatsiya Menyusi (Drawer):**
+   - Asosiy xavfsizlik, Yo'riqnoma, Dastur haqida, Yangilanish markazi va Donat.
+3. 📊 **Bento Grid Stats Vidjeti:**
+   - Albomlar soni, umumiy fayllar va taymer hisoblagichi.
