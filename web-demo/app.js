@@ -550,7 +550,7 @@ class PhotoCheckApp {
             const diffY = touch.clientY - startY;
 
             // Horizontal Swipe detected
-            if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY)) {
+            if (Math.abs(diffX) > 25 && Math.abs(diffX) > Math.abs(diffY)) {
                 if (diffX < 0) {
                     // Swipe Left -> Next Item
                     if (state.viewingKidIndex < list.length - 1) {

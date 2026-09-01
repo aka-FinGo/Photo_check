@@ -9,8 +9,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -331,7 +330,7 @@ fun KidsSystemGalleryViewer(
     }
 }
 
-// Pinch-to-zoom (2-finger) & Double-tap zoomable image component
+// Pinch-to-zoom (2-finger) & Double-tap zoomable image component (allows HorizontalPager swiping when not zoomed)
 @Composable
 fun KidsZoomableImage(
     model: Any?,
@@ -348,7 +347,7 @@ fun KidsZoomableImage(
                 detectTapGestures(
                     onTap = { onSingleTap() },
                     onDoubleTap = {
-                        if (scale > 1.2f) {
+                        if (scale > 1.05f) {
                             scale = 1f
                             offset = Offset.Zero
                         } else {
@@ -359,17 +358,69 @@ fun KidsZoomableImage(
                 )
             }
             .pointerInput(Unit) {
-                detectTransformGestures(panZoomLock = false) { _, pan, zoom, _ ->
-                    val newScale = (scale * zoom).coerceIn(1f, 4.5f)
-                    if (newScale > 1.05f || scale > 1.05f) {
-                        scale = newScale
-                        val maxOffsetX = 800f * (scale - 1f)
-                        val maxOffsetY = 800f * (scale - 1f)
-                        offset = Offset(
-                            x = (offset.x + pan.x * scale).coerceIn(-maxOffsetX, maxOffsetX),
-                            y = (offset.y + pan.y * scale).coerceIn(-maxOffsetY, maxOffsetY)
-                        )
-                    } else {
+                awaitEachGesture {
+                    var zoom = 1f
+                    var pan = Offset.Zero
+                    var pastTouchSlop = false
+                    val touchSlop = viewConfiguration.touchSlop
+
+                    awaitFirstDown(requireUnconsumed = false)
+
+                    do {
+                        val event = awaitPointerEvent()
+                        val canceled = event.changes.any { it.isConsumed }
+                        if (canceled) break
+
+                        val pointerCount = event.changes.size
+
+                        if (pointerCount >= 2) {
+                            val zoomChange = event.calculateZoom()
+                            val panChange = event.calculatePan()
+
+                            if (!pastTouchSlop) {
+                                zoom *= zoomChange
+                                pan += panChange
+
+                                val centroidSize = event.calculateCentroidSize(useCurrent = false)
+                                val zoomMotion = kotlin.math.abs(1 - zoom) * centroidSize
+                                val panMotion = pan.getDistance()
+
+                                if (zoomMotion > touchSlop || panMotion > touchSlop) {
+                                    pastTouchSlop = true
+                                }
+                            }
+
+                            if (pastTouchSlop) {
+                                val newScale = (scale * zoomChange).coerceIn(1f, 4.5f)
+                                scale = newScale
+                                if (scale > 1.05f) {
+                                    val maxOffsetX = 800f * (scale - 1f)
+                                    val maxOffsetY = 800f * (scale - 1f)
+                                    offset = Offset(
+                                        x = (offset.x + panChange.x * scale).coerceIn(-maxOffsetX, maxOffsetX),
+                                        y = (offset.y + panChange.y * scale).coerceIn(-maxOffsetY, maxOffsetY)
+                                    )
+                                } else {
+                                    scale = 1f
+                                    offset = Offset.Zero
+                                }
+                                event.changes.forEach { it.consume() }
+                            }
+                        } else if (pointerCount == 1 && scale > 1.05f) {
+                            val panChange = event.calculatePan()
+                            val maxOffsetX = 800f * (scale - 1f)
+                            val maxOffsetY = 800f * (scale - 1f)
+                            offset = Offset(
+                                x = (offset.x + panChange.x).coerceIn(-maxOffsetX, maxOffsetX),
+                                y = (offset.y + panChange.y).coerceIn(-maxOffsetY, maxOffsetY)
+                            )
+                            event.changes.forEach { it.consume() }
+                        } else {
+                            // 1 finger and NOT zoomed: do NOT consume events so HorizontalPager swipes freely!
+                        }
+                    } while (event.changes.any { it.pressed })
+
+                    if (scale <= 1.05f) {
                         scale = 1f
                         offset = Offset.Zero
                     }

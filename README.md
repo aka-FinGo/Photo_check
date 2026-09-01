@@ -1,62 +1,40 @@
-# 📱 PhotoCheck - Android uchun Rasm va Videolarni Saralash Dasturi
+# 📱 PhotoCheck — Kids Safe Gallery & 1:1 Original Slidebox Pro
 
-**PhotoCheck** — Play Marketdagi *Slidebox* dasturining muqobili bo'lib, telefoningizdagi rasm va videolarni qulay va tezkor saralash, keraksizlarini o'chirish va yoqqanlarini yurakcha (sevimlilar) ro'yxatiga qo'shish uchun yaratilgan Android loyihadir.
-
----
-
-## ⚡ Asosiy Imkoniyatlar va Boshqaruv (Gestures)
-
-* 👈 **Chapga surish (Swipe Left):** Keyingi rasm yoki videoga o'tish.
-* 👉 **O'ngga surish (Swipe Right):** Oldingi rasm yoki videoga qaytish.
-* 👆 **Tepaga surish (Swipe Up):** Rasmni **yurakcha (Sevimlilar)** ro'yxatiga saqlash.
-* 👇 **Pastga surish (Swipe Down):** Rasmni **o'chirish navbatiga (Savat)** o'tkazish.
-* 🗑 **Savat boshqaruvi (Trash Manager):** Pastga surilgan barcha fayllarni bir tugma bilan qurilmadan butunlay o'chirish yoki xatoni qaytarish (Restore).
+**PhotoCheck** — Bolalar uchun xavfsiz galereya (Kids Safe Mode) va ota-onalar uchun 1:1 Slidebox saralash tajribasini birlashtirgan, Jetpack Compose va Kotlin asosida yaratilgan zamonaviy Android ilovadir.
 
 ---
 
-## 📁 Loyiha Tarkibi
+## 🌟 Asosiy Rejimlar va Imkoniyatlar
 
-1. **`android-app/`** — **Jetpack Compose** va **Kotlin** asosida yaratilgan to'liq Android Studio loyihasi.
-2. **`web-demo/`** — Brauzerda va telefonda dasturni darhol ishlatib va sinab ko'rish uchun mo'ljallangan interaktiv mobil prototip.
-3. **`.github/workflows/build-apk.yml`** — **GitHub Actions** orqali avtomatik ravishda tayyor `.apk` faylini yig'ish (build qilish) ssenariysi.
+### 1. 👶 Bolalar Rejimi (Kids Safe Gallery):
+* **Mi Gallery Uslubida Minimalist Interfeys:** Ekranda hech qanday ortiqcha oldinga/orqaga tugmalari yo'q, faqat tabiiy chapga/o'ngga surish (Horizontal Swipe).
+* **🔍 2-Barmoqli Zoom (Pinch-to-Zoom & Double-Tap):** 2 ta barmoq bilan 1x dan 4.5x gacha silliq masshtablash; 1 barmoq bilan erkin surish.
+* **🎬 Video Player Timeline (Scrubber):** Jonli vaqt hisoblagichi (`00:15 / 02:45`), interaktiv progress slayderi, 10s oldinga/ortga va avtomatik yashirinuvchi boshqaruv paneli.
+* **🔒 Biometrik Chiqish Himoyasi:** Chiqish, orqaga qaytish yoki sozlamalarga o'tishda barmoq izi, yuz yoki telefon PIN kodi so'raladi.
+* **⏳ Ekran Vaqti Chegarasi:** 15, 30, 45, 60 daqiqa. Vaqt tugagach "Uxlash vaqti 🌙" animatsion qulf ekrani chiqadi.
+* **📁 Oq Ro'yxat (Whitelisted Albums):** Bolaga faqat ota-ona ruxsat bergan albomlar ko'rinadi. O'chirish va ulashish butunlay yashirilgan.
 
----
+### 2. 🎴 1:1 Original Slidebox Pro (Ota-ona Saralash Rejimi):
+* 👆 **Tepaga surish (Swipe UP to Trash):** Kartochkani savatga / o'chirish navbatiga o'tkazish (`offsetY < -50f` bo'lganda animatsiya va Toast bilan darhol savatga tushadi).
+* 👈 👉 **Chapga/O'ngga surish:** Keyingi va oldingi rasm/videolarga o'tish.
+* 📁 **Pastki Albomlar Paneli:** Birgina bosishda rasmni tegishli albomga biriktirish.
+* 🗑️ **Savat Boshqaruvi (Trash Manager):** Barcha savatdagi fayllarni bir tugma bilan qurilmadan tozalash yoki qaytarish (Restore).
+* 🔄 **Undo & Favorite:** Xatoni qaytarish va sevimlilar (yurakcha) ro'yxatiga olish.
 
-## 🚀 GitHub Actions Orqali APK Tayyorlash va Yuklab Olish
-
-Ushbu repozitoriyada **GitHub Actions** sozlangan. Siz Android Studio o'rnatmasdan turib, to'g'ridan-to'g'ri GitHub saytining o'zida APK yaratishingiz va telefoningizga yuklab olishingiz mumkin:
-
-### 1-qadam: GitHub Actions bo'limiga kiring
-1. Repozitoriyangizning yuqori menyusidagi **Actions** tugmasini bosing.
-2. Chap tomondagi ro'yxatdan **Build Android APK (PhotoCheck)** bo'limini tanlang.
-
-### 2-qadam: APK turini tanlang va Build qilishni boshlang
-1. O'ng tomondagi **Run workflow** tugmasini bosing.
-2. **"Chiqariladigan APK turini tanlang"** bo'limida o'zingizga kerakli variantni tanlang:
-   - **`arm64-v8a`** — *Mening telefonim uchun:* Zamonaviy Android telefonlar uchun maxsus optimallashgan, ixcham hajmdagi APK.
-   - **`universal`** — *Universal APK:* Istalgan turdagi Android telefoniga tushadigan universal versiya.
-   - **`both`** — Ikkala versiyani ham bir vaqtda chiqarish.
-3. **Run workflow** (Yashil tugma)ni bosing.
-
-### 3-qadam: APK faylini yuklab oling
-1. 2-3 daqiqadan so'ng jarayon (Checkmark ✅) yakunlanadi.
-2. Bajarilgan ish ustiga bosing va eng pastdagi **Artifacts** bo'limidan tayyor `.apk` faylini yuklab oling va telefoningizga o'rnating!
+### 3. 🛡️ Ota-ona Sozlamalari (Parent Settings):
+* 🍔 **Gamburger Menyusi (Drawer):** Sozlamalar, Qo'llanma, Dastur yangilash, Dastur haqida va Donat.
+* 📊 **Bento Analytics Vidjeti:** Ruxsat etilgan albomlar, jami fayllar va taymer hisoblagichi.
+* 🔘 **Albomlarni Katta Tugmalar Bilan Boshqarish:** `[✓✓ Barchasini Tanlash]` va `[⨂ Bekor Qilish]` to'liq enli maxsus tugmalar.
+* 🚀 **In-App Updater:** GitHub Releases orqali ilova ichidan to'g'ridan-to'g'ri yangi versiyani tekshirish va o'rnatish.
 
 ---
 
-## 🛠 GitHub-ga Push Qilish Ko'rsatmasi
-
-Ushbu loyihani o'zingizning GitHub repozitoriyangizga yuklash uchun terminalda quyidagi buyruqlarni ketma-ket bajaring:
-
-```bash
-git add .
-git commit -m "Add PhotoCheck Android app, web demo, and GitHub Actions APK build workflow"
-git branch -M main
-git push -u origin main
-```
+## 🌐 Jonli Havolalar (GitHub Pages):
+* **Asosiy Landing Page:** [https://aka-fingo.github.io/Photo_check/](https://aka-fingo.github.io/Photo_check/)
+* **Mobil Interaktiv Demo:** [https://aka-fingo.github.io/Photo_check/web-demo/](https://aka-fingo.github.io/Photo_check/web-demo/)
 
 ---
 
-## 💻 Muallif va Ruxsatlar
+## 💻 Muallif va Litsenziya
 * **Dasturchi:** aka-FinGo & Google Antigravity AI
-* **Litsenziya:** MIT License
+* **Litsenziya:** MIT License (Ochiq kodli)
