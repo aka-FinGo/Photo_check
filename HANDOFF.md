@@ -66,7 +66,7 @@ Qo'shimcha rasmiy ro'yxat: [`FEATURES_REGISTRY.md`](file:///e:/Loyihalarim/GitHu
    - **Web Demo Sinxronizatsiyasi:** `web-demo/` da ham double-tap/double-click zoom toggle, koordinataga qarab kattalashish, va tomoshabin yopilganda oxirgi ko'rilgan kartochkaga silliq fokuslanish (`scrollIntoView`) ulandi.
 
 12. 🛠️ **CI/CD Tuzatish va Global Tasteskill UI/UX Mukammallashtirish:**
-   - **CI/CD Kompilyatsiya Xatosi Bartaraf Etildi:** `KidsSafeGalleryScreen.kt` da tushib qolgan `import kotlinx.coroutines.launch` qo'shildi (71-ishga tushirishdagi `Unresolved reference: launch` xatosi to'liq hal qilindi).
+   - **CI/CD Kompilyatsiya Xatolari Bartaraf Etildi:** `KidsSafeGalleryScreen.kt` da tushib qolgan `import kotlinx.coroutines.launch` va `import androidx.compose.animation.core.*` qo'shildi (`Unresolved reference: launch` va `Unresolved reference: animateFloat` xatolari to'liq hal qilindi). Shuningdek, `PhotoCheckApp.kt` ga ham to'liq `animation.core.*` importi ulandi.
    - **🌙 Tungi Osmon & Uxlash Ekrani (`KidsSleepLockedScreen`):** Radial indigo-midnight gradient, 2.4 soniyali silliq nafas oluvchi (breathing pulse) oy nishoni va zumrad-moviy nurli biometrik ochish tugmasi o'rnatildi.
    - **🎴 Pro Top Bar & Slidebox Ergonomik Klasteri:** 32dp neo-glass tabletkalar, 7 ta tugma o'rniga ergonomik 2 ta guruh (chapda navigatsiya va qaytarish, o'ngda savat, yurak va ulashish), pastki albomlar panelida silliq shisha kartochkalar.
    - **📊 Bento Dashboard Sayqallari:** Ota-ona sozlamalaridagi statistika kartalari piktogrammalar va micro-glow bilan boyitildi.
