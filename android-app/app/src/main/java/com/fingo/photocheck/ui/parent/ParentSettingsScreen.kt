@@ -596,7 +596,6 @@ fun ParentSettingsScreen(
                             }
                         }
                     }
-                    }
                 }
             }
         }
