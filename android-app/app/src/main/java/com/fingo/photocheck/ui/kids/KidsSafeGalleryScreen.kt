@@ -45,6 +45,7 @@ import coil.request.ImageRequest
 import coil.request.videoFrameMillis
 import com.fingo.photocheck.model.MediaItem
 import com.fingo.photocheck.model.MediaType
+import kotlinx.coroutines.launch
 
 @Composable
 fun KidsSafeGalleryScreen(
@@ -927,42 +928,119 @@ fun KidsSafeHeader(
 fun KidsSleepLockedScreen(
     onUnlock: () -> Unit
 ) {
+    val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "sleepMoonPulse")
+    val moonScale by infiniteTransition.animateFloat(
+        initialValue = 0.96f,
+        targetValue = 1.04f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(2400, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "moonScale"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF070913))
-            .padding(24.dp),
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF070A14),
+                        Color(0xFF191438),
+                        Color(0xFF0A0F1F)
+                    )
+                )
+            )
+            .padding(28.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text("🌙", fontSize = 72.sp)
-            Spacer(modifier = Modifier.height(16.dp))
+            // Atmospheric Glowing Moon Orb
+            Box(
+                modifier = Modifier
+                    .size(110.dp)
+                    .graphicsLayer {
+                        scaleX = moonScale
+                        scaleY = moonScale
+                    }
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFFFDE047).copy(alpha = 0.28f),
+                                Color(0xFF6366F1).copy(alpha = 0.15f),
+                                Color.Transparent
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF1E1B4B).copy(alpha = 0.8f))
+                        .border(1.5.dp, Color(0xFFFDE047).copy(alpha = 0.5f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("🌙", fontSize = 42.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             Text(
                 "Uxlash va dam olish vaqti! ✨",
                 color = Color(0xFFFDE047),
                 fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
+                fontWeight = FontWeight.ExtraBold,
+                textAlign = TextAlign.Center,
+                letterSpacing = (-0.3).sp
             )
-            Spacer(modifier = Modifier.height(8.dp))
+
+            Spacer(modifier = Modifier.height(10.dp))
+
             Text(
                 "Bugungi tomosha vaqti tugadi.\nKo'zlaringizni dam oldiring! 🧸",
                 color = Color(0xFF94A3B8),
                 fontSize = 14.sp,
+                lineHeight = 20.sp,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(32.dp))
-            Button(
+
+            Spacer(modifier = Modifier.height(36.dp))
+
+            // Neo-Glass Biometric Unlock Button
+            Surface(
                 onClick = onUnlock,
-                shape = RoundedCornerShape(24.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF38BDF8))
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFF1E293B).copy(alpha = 0.9f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.5f)),
+                shadowElevation = 8.dp,
+                modifier = Modifier.height(48.dp)
             ) {
-                Icon(Icons.Default.Fingerprint, contentDescription = null, tint = Color.Black)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Ota-ona uchun ochish 🔑", color = Color.Black, fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        Icons.Default.Fingerprint,
+                        contentDescription = null,
+                        tint = Color(0xFF38BDF8),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        "Ota-ona uchun ochish 🔑",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
             }
         }
     }

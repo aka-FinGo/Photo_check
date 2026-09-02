@@ -240,40 +240,54 @@ fun PhotoCheckApp(
             containerColor = Color(0xFF090A0F),
             topBar = {
                 Surface(
-                    color = Color(0xFF111420),
+                    color = Color(0xFF0B0F19),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Left: Real Album Filter Dropdown
+                        // Left: Real Album Filter Dropdown (Neo-Glass Pill)
                         Box {
-                            Row(
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color(0xFF1E293B).copy(alpha = 0.85f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.35f)),
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(Color(0xFF1E2330))
+                                    .height(32.dp)
                                     .clickable { showDropdownMenu = true }
-                                    .padding(horizontal = 12.dp, vertical = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = if (showGridView) "Galereya Ko'rinishi 🔲" else "$selectedFilter ▼",
-                                    color = Color.White,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (showGridView) "Galereya 🔲" else selectedFilter,
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        Icons.Default.ArrowDropDown,
+                                        contentDescription = null,
+                                        tint = Color(0xFF38BDF8),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
 
                             DropdownMenu(
                                 expanded = showDropdownMenu,
                                 onDismissRequest = { showDropdownMenu = false },
                                 modifier = Modifier
-                                    .background(Color(0xFF1E2330))
-                                    .border(1.dp, Color(0xFF374151), RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF161E2E))
+                                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
                             ) {
                                 DropdownMenuItem(
                                     text = {
@@ -288,7 +302,7 @@ fun PhotoCheckApp(
                                         showDropdownMenu = false
                                     }
                                 )
-                                HorizontalDivider(color = Color(0xFF374151))
+                                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
                                 allAlbumsList.forEach { albumName ->
                                     DropdownMenuItem(
                                         text = {
@@ -309,66 +323,98 @@ fun PhotoCheckApp(
                             }
                         }
 
-                        // Right: Trash counter, Kids Lock & Settings
+                        // Right: Unified 32dp Action Pills
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             if (availableUpdate?.hasUpdate == true) {
-                                Button(
+                                Surface(
                                     onClick = { showUpdateDialog = true },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                                    shape = RoundedCornerShape(12.dp),
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color(0xFF0284C7).copy(alpha = 0.85f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8)),
+                                    modifier = Modifier.height(32.dp)
                                 ) {
-                                    Text("Yangilash 🚀", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 9.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("Yangilash 🚀", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
 
-                            // 🗑️ Top Bar Trash Counter (Tap to view and manage trash)
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(if (trashedItems.isNotEmpty()) Color(0xFF7F1D1D) else Color(0xFF1E2330))
-                                    .clickable { showTrashSheet = true }
-                                    .padding(horizontal = 10.dp, vertical = 7.dp)
+                            // 🗑️ Top Bar Trash Pill
+                            Surface(
+                                onClick = { showTrashSheet = true },
+                                shape = RoundedCornerShape(16.dp),
+                                color = if (trashedItems.isNotEmpty()) Color(0xFF7F1D1D).copy(alpha = 0.75f) else Color(0xFF1E293B).copy(alpha = 0.85f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (trashedItems.isNotEmpty()) Color(0xFFEF4444).copy(alpha = 0.5f) else Color.White.copy(alpha = 0.12f)),
+                                modifier = Modifier.height(32.dp)
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Icon(
                                         Icons.Default.Delete,
                                         contentDescription = "Savat",
-                                        tint = if (trashedItems.isNotEmpty()) Color(0xFFFCA5A5) else Color.Gray,
-                                        modifier = Modifier.size(16.dp)
+                                        tint = if (trashedItems.isNotEmpty()) Color(0xFFFCA5A5) else Color(0xFF94A3B8),
+                                        modifier = Modifier.size(15.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "${trashedItems.size}",
-                                        color = if (trashedItems.isNotEmpty()) Color.White else Color.Gray,
+                                        color = if (trashedItems.isNotEmpty()) Color.White else Color(0xFF94A3B8),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
 
-                            // Switch to Kids Mode
-                            Button(
+                            // Switch to Kids Mode Pill
+                            Surface(
                                 onClick = {
                                     isKidsMode = true
                                     kidsPrefs.isKidsMode = true
                                     isClassicModeActive = false
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
-                                shape = RoundedCornerShape(12.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color(0xFF1E293B).copy(alpha = 0.85f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.6f)),
+                                modifier = Modifier.height(32.dp)
                             ) {
-                                Text("👶 Bolalar", color = Color.Black, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Lock,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFDE047),
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text("Bolalar", color = Color(0xFFFDE047), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
 
+                            // Settings Gear Pill
                             IconButton(
                                 onClick = { showParentSettings = true },
-                                modifier = Modifier.size(34.dp)
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF1E293B).copy(alpha = 0.85f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
                             ) {
-                                Icon(Icons.Default.Settings, contentDescription = "Sozlamalar", tint = Color.White)
+                                Icon(
+                                    Icons.Default.Settings,
+                                    contentDescription = "Sozlamalar",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
                             }
                         }
                     }
@@ -772,119 +818,144 @@ fun SlideboxCardSorterScreen(
             }
         }
 
-        // Action Toolbar (Undo, Prev, Index, Next, Favorite, Share)
+        // Action Toolbar (Ergonomic Cluster)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp),
+                .padding(horizontal = 14.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Undo Button
-            IconButton(
-                onClick = onUndo,
-                enabled = canUndo,
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(if (canUndo) Color(0xFF1E2330) else Color(0xFF141722))
+            // Left Group: Undo & Navigation
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Icon(
-                    Icons.Default.Refresh,
-                    contentDescription = "Ortga qaytarish",
-                    tint = if (canUndo) Color(0xFF38BDF8) else Color.DarkGray,
-                    modifier = Modifier.size(20.dp)
+                // Undo Button Pill
+                Surface(
+                    onClick = onUndo,
+                    enabled = canUndo,
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (canUndo) Color(0xFF1E293B) else Color(0xFF111622),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (canUndo) Color(0xFF38BDF8).copy(alpha = 0.4f) else Color.White.copy(alpha = 0.05f)),
+                    modifier = Modifier.height(36.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "Ortga",
+                            tint = if (canUndo) Color(0xFF38BDF8) else Color.DarkGray,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Ortga", color = if (canUndo) Color.White else Color.DarkGray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                // Previous
+                IconButton(
+                    onClick = onPrevious,
+                    enabled = currentIndex > 0,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF1E293B).copy(alpha = 0.8f))
+                        .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
+                ) {
+                    Icon(
+                        Icons.Default.ArrowBack,
+                        contentDescription = "Oldingi",
+                        tint = if (currentIndex > 0) Color.White else Color.DarkGray,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // Counter Badge
+                Text(
+                    text = "${currentIndex + 1} / $totalCount",
+                    color = Color.LightGray,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 4.dp)
                 )
+
+                // Next
+                IconButton(
+                    onClick = onNext,
+                    enabled = currentIndex < totalCount - 1,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF1E293B).copy(alpha = 0.8f))
+                        .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
+                ) {
+                    Icon(
+                        Icons.Default.ArrowForward,
+                        contentDescription = "Keyingi",
+                        tint = if (currentIndex < totalCount - 1) Color.White else Color.DarkGray,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
 
-            // Previous
-            IconButton(
-                onClick = onPrevious,
-                enabled = currentIndex > 0,
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF1E2330))
+            // Right Group: Trash, Favorite, Share
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(
-                    Icons.Default.ArrowBack,
-                    contentDescription = "Oldingi",
-                    tint = if (currentIndex > 0) Color.White else Color.DarkGray,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+                // Quick Trash Button
+                IconButton(
+                    onClick = onTrash,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF7F1D1D).copy(alpha = 0.75f))
+                        .border(1.dp, Color(0xFFEF4444).copy(alpha = 0.6f), CircleShape)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Savatga tashlash",
+                        tint = Color(0xFFFCA5A5),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
 
-            // Counter indicator
-            Text(
-                text = "${currentIndex + 1} / $totalCount",
-                color = Color.LightGray,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold
-            )
+                // Favorite Heart Button
+                IconButton(
+                    onClick = onToggleFavorite,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(if (isFavorite) Color(0xFF7F1D1D).copy(alpha = 0.85f) else Color(0xFF1E293B).copy(alpha = 0.8f))
+                        .border(1.dp, if (isFavorite) Color(0xFFEF4444) else Color.White.copy(alpha = 0.12f), CircleShape)
+                ) {
+                    Icon(
+                        if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = "Sevimli",
+                        tint = if (isFavorite) Color(0xFFEF4444) else Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
 
-            // Next
-            IconButton(
-                onClick = onNext,
-                enabled = currentIndex < totalCount - 1,
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF1E2330))
-            ) {
-                Icon(
-                    Icons.Default.ArrowForward,
-                    contentDescription = "Keyingi",
-                    tint = if (currentIndex < totalCount - 1) Color.White else Color.DarkGray,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            // Trash Button (Quick Trash)
-            IconButton(
-                onClick = onTrash,
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF7F1D1D).copy(alpha = 0.85f))
-            ) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Savatga tashlash",
-                    tint = Color(0xFFEF4444),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            // Favorite (Heart)
-            IconButton(
-                onClick = onToggleFavorite,
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(if (isFavorite) Color(0xFF7F1D1D) else Color(0xFF1E2330))
-            ) {
-                Icon(
-                    if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = "Sevimli",
-                    tint = if (isFavorite) Color(0xFFEF4444) else Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            // Share
-            IconButton(
-                onClick = onShare,
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF1E2330))
-            ) {
-                Icon(
-                    Icons.Default.Share,
-                    contentDescription = "Ulashish",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
+                // Share Button
+                IconButton(
+                    onClick = onShare,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF1E293B).copy(alpha = 0.8f))
+                        .border(1.dp, Color.White.copy(alpha = 0.1f), CircleShape)
+                ) {
+                    Icon(
+                        Icons.Default.Share,
+                        contentDescription = "Ulashish",
+                        tint = Color(0xFF94A3B8),
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
             }
         }
 
@@ -892,14 +963,15 @@ fun SlideboxCardSorterScreen(
 
         // 📁 PASTKI ALBOMLAR PANELI (QUICK ALBUM SORTER TRAY)
         Surface(
-            color = Color(0xFF10131D),
+            color = Color(0xFF0F1422),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(vertical = 8.dp)) {
                 Text(
-                    text = "ALBOMLARGA SARALASH (BOSING VA KEYINGISIGA O'TADI)",
-                    color = Color.Gray,
-                    fontSize = 10.sp,
+                    text = "📁 Albomga saralash (bosing va keyingisiga o'tadi):",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
                 )

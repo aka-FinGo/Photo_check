@@ -24,8 +24,11 @@
     <div class="bg-glow bg-glow-2"></div>
 
     <div class="app-container">
+        <!-- Ambient Aura Bloom behind phone frame -->
+        <div class="phone-aura"></div>
+
         <!-- Mock Phone Shell -->
-        <div class="device-frame" id="device-frame">
+        <div class="device-frame phone-mockup" id="device-frame">
             
             <!-- Dynamic Island / Speaker Notch -->
             <div class="dynamic-island">
@@ -86,15 +89,15 @@
                 </div>
                 <div class="header-right">
                     <button class="btn-donate-quick" id="btn-open-donate-pro" title="Dasturchini qo'llab-quvvatlash">
-                        ☕ Donat
+                        <span class="chip-icon">☕</span> <span>Donat</span>
                     </button>
                     <button class="btn-trash-header" id="btn-open-trash" title="Savat">
                         <i class="fas fa-trash-alt"></i> <span id="trash-header-count">0</span>
                     </button>
-                    <button class="btn-kids-lock" id="btn-lock-to-kids">
-                        <i class="fas fa-lock"></i> 👶 Bolalar
+                    <button class="btn-kids-lock" id="btn-lock-to-kids" title="Bolalar rejimiga o'tish">
+                        <i class="fas fa-lock"></i> <span>👶 Bolalar</span>
                     </button>
-                    <button class="btn-icon-gear" id="btn-pro-settings">
+                    <button class="btn-icon-gear" id="btn-pro-settings" title="Sozlamalar">
                         <i class="fas fa-gear"></i>
                     </button>
                 </div>
@@ -120,11 +123,11 @@
             <!-- Screen 2: Kids Sleep Locked Screen (when timer finishes) -->
             <div id="screen-kids-sleep" class="app-screen hidden">
                 <div class="sleep-content">
-                    <div class="moon-icon">🌙</div>
+                    <div class="moon-icon" title="Shirin tushlar">🌙</div>
                     <h2>Uxlash va dam olish vaqti bo'ldi! ✨</h2>
                     <p>Bugungi tomosha vaqti tugadi. Ko'zlaringizni dam oldiring! 🧸</p>
-                    <button class="btn btn-unlock-parent" id="btn-sleep-unlock">
-                        <i class="fas fa-fingerprint"></i> Ota-ona uchun ochish 🔑
+                    <button class="btn btn-unlock-parent" id="btn-sleep-unlock" title="Barmoq izi orqali ochish">
+                        <i class="fas fa-fingerprint"></i> <span>Ota-ona uchun ochish 🔑</span>
                     </button>
                 </div>
             </div>

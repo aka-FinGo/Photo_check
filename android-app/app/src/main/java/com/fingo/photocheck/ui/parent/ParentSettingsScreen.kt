@@ -260,35 +260,43 @@ fun ParentSettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // Card 1: Whitelisted Photos
+                        // Card 1: Whitelisted Photos (Bento Neo-Glass)
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = Color(0xFF141A28),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)),
+                            color = Color(0xFF131928),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
                             modifier = Modifier.weight(1f)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("Ruxsat berilgan", fontSize = 11.sp, color = Color(0xFF94A3B8), fontWeight = FontWeight.SemiBold)
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text("$whitelistedCount ta", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFFDE047))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.FolderSpecial, contentDescription = null, tint = Color(0xFFFDE047), modifier = Modifier.size(15.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Ruxsat berilgan", fontSize = 11.sp, color = Color(0xFF94A3B8), fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("$whitelistedCount ta", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFFDE047))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text("Jami: ${mediaList.size} ta fayl", fontSize = 10.sp, color = Color(0xFF64748B))
+                                Text("Jami: ${mediaList.size} ta fayl", fontSize = 11.sp, color = Color(0xFF64748B))
                             }
                         }
 
-                        // Card 2: Timer Status
+                        // Card 2: Timer Status (Bento Neo-Glass)
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = Color(0xFF141A28),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)),
+                            color = Color(0xFF131928),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
                             modifier = Modifier.weight(1f)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("Ekran Vaqti", fontSize = 11.sp, color = Color(0xFF94A3B8), fontWeight = FontWeight.SemiBold)
-                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.HourglassTop, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(15.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Ekran Vaqti", fontSize = 11.sp, color = Color(0xFF94A3B8), fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(if (timerLimitMinutes > 0) "$timerLimitMinutes daqiqa" else "Cheksiz", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF38BDF8))
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text("Taymer chegarasi", fontSize = 10.sp, color = Color(0xFF64748B))
+                                Text("Taymer chegarasi", fontSize = 11.sp, color = Color(0xFF64748B))
                             }
                         }
                     }

@@ -877,6 +877,7 @@ class PhotoCheckApp {
         stack.appendChild(card);
         this.attachCardGestures(card, currentItem);
         this.updateFavButtonState(currentItem);
+        this.updateTrayActiveState(currentItem);
     }
 
     attachCardGestures(card, item) {
@@ -1062,10 +1063,15 @@ class PhotoCheckApp {
         const tray = document.getElementById('album-tray-list');
         if (!tray) return;
         tray.innerHTML = '';
+        const currentItem = this.getCurrentProItem();
 
         state.userAlbums.forEach(albumName => {
             const btn = document.createElement('button');
             btn.className = 'btn-tray-album';
+            btn.dataset.album = albumName;
+            if (currentItem && currentItem.folder === albumName) {
+                btn.classList.add('active');
+            }
             btn.innerHTML = `📁 ${albumName}`;
             btn.addEventListener('click', () => {
                 const item = this.getCurrentProItem();
@@ -1088,6 +1094,19 @@ class PhotoCheckApp {
             document.getElementById('create-album-modal')?.classList.add('active');
         });
         tray.appendChild(addBtn);
+    }
+
+    updateTrayActiveState(item) {
+        const tray = document.getElementById('album-tray-list');
+        if (!tray) return;
+        const buttons = tray.querySelectorAll('.btn-tray-album:not(.add-album)');
+        buttons.forEach(btn => {
+            if (item && btn.dataset.album === item.folder) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
     }
 
     // Trash Manager
