@@ -453,6 +453,11 @@ class PhotoCheckApp {
             counter.textContent = `${state.viewingKidIndex + 1} / ${list.length}`;
         }
 
+        const prevBtn = document.getElementById('btn-kid-prev');
+        const nextBtn = document.getElementById('btn-kid-next');
+        if (prevBtn) prevBtn.style.display = state.viewingKidIndex > 0 ? 'flex' : 'none';
+        if (nextBtn) nextBtn.style.display = state.viewingKidIndex < list.length - 1 ? 'flex' : 'none';
+
         if (item.type === 'video') {
             content.innerHTML = `
                 <div class="video-player-container">

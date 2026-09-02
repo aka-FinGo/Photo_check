@@ -72,6 +72,13 @@ Qo'shimcha rasmiy ro'yxat: [`FEATURES_REGISTRY.md`](file:///e:/Loyihalarim/GitHu
    - **📊 Bento Dashboard Sayqallari:** Ota-ona sozlamalaridagi statistika kartalari piktogrammalar va micro-glow bilan boyitildi.
    - **🌐 Web Demo Ambient Bloom & Neo-Glass Overhaul:** Veb namoyishida telefon romi ortida `.phone-aura` ambient nur yog'dusi (`auraBreath` animatsiyasi), 32px balandlikdagi neo-glass Pro header tabletkalari (`#btn-open-donate-pro`, `#btn-open-trash`, `#btn-lock-to-kids`, `#btn-pro-settings`), taktil Slidebox boshqaruv tugmalari (qizil yoqutli Savat, yurak yoqutli Sevimlilar, Undo), dinamik faol porlovchi shisha albom tabletkalari, yuqori yorug'lik hoshiyali Bento statistika kartalari, silliq neo-glass kalitlar (switch), hamda yulduzli tungi osmon va nafas oluvchi oy nuri bilan jihozlangan Uxlash ekrani to'liq joriy qilindi.
 
+13. 🔄 **Rasmlar va Videolarni O'ngga/Chapga Surish (Swipe Paging) To'liq Qayta Tiklandi:**
+   - **Xato Sababi:** `detectTapGestures` boshlang'ich bosish hodisasini (`down.consume()`) o'zlashtirib olgani sababli, `HorizontalPager` surish imo-ishorasini (drag) qabul qila olmay qolgan edi.
+   - **Android (`KidsSafeGalleryScreen.kt`):** `KidsZoomableImage` ga xavfsiz `awaitEachGesture(awaitFirstDown(requireUnconsumed = false))` o'rnatildi: kattalashtirilmagan holatda (`scale <= 1.05f`) 1-barmoqli gorizontal surish hodisasi umuman o'zlashtirilmaydi (`unconsumed`), natijada `HorizontalPager` rasmlar orasida silliq va tabiiy sirpanadi. 2-marta bosganda silliq zoom in/out (2.5x), 2-barmoq bilan chimdiganda esa masshtablash to'liq ishlaydi.
+   - **Videolarda Surish (`KidsVideoPlayer`):** `clickable` o'rniga yengil tap detektori o'rnatildi, videodan rasmga va rasmdan videoga bemalol surib o'tish imkoni ochildi.
+   - **Qo'shimcha Navigatsiya Tugmalari:** To'liq ekrandagi tomoshabin chap va o'ng tomonlariga zamonaviy suzuvchi `[<]` va `[>]` shisha piktogrammalari o'rnatildi (bitta bosish bilan ham o'tish mumkin).
+   - **Web Demo Sinxronizatsiyasi:** `web-demo/` tomoshabiniga ham suzuvchi `#btn-kid-prev` va `#btn-kid-next` tugmalari, hamda sichqoncha va sensor uchun to'liq sinxron swipe boshqaruvi ulandi.
+
 ---
 
 ## 3. GitHub Actions CI/CD va Reliz Tizimi:

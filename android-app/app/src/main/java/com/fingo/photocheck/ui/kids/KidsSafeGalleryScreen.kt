@@ -274,6 +274,7 @@ fun KidsSystemGalleryViewer(
     initialIndex: Int,
     onClose: (lastViewedIndex: Int) -> Unit
 ) {
+    val coroutineScope = rememberCoroutineScope()
     val pagerState = rememberPagerState(
         initialPage = initialIndex.coerceIn(0, (mediaList.size - 1).coerceAtLeast(0)),
         pageCount = { mediaList.size }
@@ -305,7 +306,7 @@ fun KidsSystemGalleryViewer(
                     // Video Player
                     KidsVideoPlayer(uri = item.uri)
                 } else {
-                    // Photo View with Pinch & Double-Tap Smooth Zoom
+                    // Photo View with Pinch & Double-Tap Smooth Zoom (unconsumed horizontal swipe for Pager)
                     KidsZoomableImage(
                         model = item.uri,
                         contentDescription = item.displayName,
@@ -370,10 +371,70 @@ fun KidsSystemGalleryViewer(
                 }
             }
         }
+
+        // Floating Left Navigation Arrow (Previous)
+        AnimatedVisibility(
+            visible = showControls && pagerState.currentPage > 0,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 12.dp)
+        ) {
+            IconButton(
+                onClick = {
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                    }
+                },
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF1E293B).copy(alpha = 0.8f))
+                    .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+            ) {
+                Icon(
+                    Icons.Default.ArrowBack,
+                    contentDescription = "Oldingi",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        // Floating Right Navigation Arrow (Next)
+        AnimatedVisibility(
+            visible = showControls && pagerState.currentPage < mediaList.size - 1,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 12.dp)
+        ) {
+            IconButton(
+                onClick = {
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                    }
+                },
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF1E293B).copy(alpha = 0.8f))
+                    .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+            ) {
+                Icon(
+                    Icons.Default.ArrowForward,
+                    contentDescription = "Keyingi",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
     }
 }
 
-// Pinch-to-zoom (2-finger) & Smooth Double-tap Zoom In / Zoom Out (allows HorizontalPager swiping when not zoomed)
+// Pinch-to-zoom (2-finger) & Smooth Double-tap Zoom In / Zoom Out (unconsumed horizontal swipe so HorizontalPager swipes freely)
 @Composable
 fun KidsZoomableImage(
     model: Any?,
@@ -384,75 +445,135 @@ fun KidsZoomableImage(
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
-    val transformState = rememberTransformableState { zoomChange, offsetChange, _ ->
-        val newScale = (scale * zoomChange).coerceIn(1f, 4.5f)
-        scale = newScale
-        if (newScale > 1.05f) {
-            val maxOffsetX = 900f * (newScale - 1f)
-            val maxOffsetY = 900f * (newScale - 1f)
-            offset = Offset(
-                x = (offset.x + offsetChange.x * newScale).coerceIn(-maxOffsetX, maxOffsetX),
-                y = (offset.y + offsetChange.y * newScale).coerceIn(-maxOffsetY, maxOffsetY)
-            )
-        } else {
-            scale = 1f
-            offset = Offset.Zero
-        }
-    }
+    // Tap tracking
+    var lastTapTime by remember { mutableLongStateOf(0L) }
+    var lastTapPos by remember { mutableStateOf(Offset.Zero) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = { onSingleTap() },
-                    onDoubleTap = {
-                        coroutineScope.launch {
-                            if (scale > 1.15f) {
-                                // Smooth Zoom Out to 1f
-                                val startScale = scale
-                                val startOffsetX = offset.x
-                                val startOffsetY = offset.y
-                                androidx.compose.animation.core.animate(
-                                    initialValue = 0f,
-                                    targetValue = 1f,
-                                    animationSpec = androidx.compose.animation.core.tween(
-                                        durationMillis = 250,
-                                        easing = androidx.compose.animation.core.FastOutSlowInEasing
-                                    )
-                                ) { fraction, _ ->
-                                    scale = startScale + (1f - startScale) * fraction
-                                    offset = Offset(
-                                        x = startOffsetX * (1f - fraction),
-                                        y = startOffsetY * (1f - fraction)
-                                    )
-                                }
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val downTime = System.currentTimeMillis()
+                    val downPos = down.position
+                    var pastTouchSlop = false
+                    val touchSlop = viewConfiguration.touchSlop
+
+                    do {
+                        val event = awaitPointerEvent()
+                        val pointerCount = event.changes.size
+
+                        if (pointerCount >= 2) {
+                            // 2-finger Pinch Zoom
+                            val zoomChange = event.calculateZoom()
+                            val panChange = event.calculatePan()
+                            val newScale = (scale * zoomChange).coerceIn(1f, 4.5f)
+                            scale = newScale
+
+                            if (newScale > 1.05f) {
+                                val maxOffsetX = 900f * (newScale - 1f)
+                                val maxOffsetY = 900f * (newScale - 1f)
+                                offset = Offset(
+                                    x = (offset.x + panChange.x * newScale).coerceIn(-maxOffsetX, maxOffsetX),
+                                    y = (offset.y + panChange.y * newScale).coerceIn(-maxOffsetY, maxOffsetY)
+                                )
+                            } else {
                                 scale = 1f
                                 offset = Offset.Zero
-                            } else {
-                                // Smooth Zoom In to 2.5f
-                                val targetScale = 2.5f
-                                val startScale = scale
-                                androidx.compose.animation.core.animate(
-                                    initialValue = 0f,
-                                    targetValue = 1f,
-                                    animationSpec = androidx.compose.animation.core.tween(
-                                        durationMillis = 250,
-                                        easing = androidx.compose.animation.core.FastOutSlowInEasing
-                                    )
-                                ) { fraction, _ ->
-                                    scale = startScale + (targetScale - startScale) * fraction
+                            }
+                            event.changes.forEach { it.consume() }
+                        } else if (pointerCount == 1 && scale > 1.05f) {
+                            // 1-finger pan while zoomed in: consume event so Pager doesn't swipe
+                            val panChange = event.calculatePan()
+                            val maxOffsetX = 900f * (scale - 1f)
+                            val maxOffsetY = 900f * (scale - 1f)
+                            offset = Offset(
+                                x = (offset.x + panChange.x).coerceIn(-maxOffsetX, maxOffsetX),
+                                y = (offset.y + panChange.y).coerceIn(-maxOffsetY, maxOffsetY)
+                            )
+                            event.changes.forEach { it.consume() }
+                        } else {
+                            // 1 finger and NOT zoomed:
+                            // CRITICAL: DO NOT CONSUME!
+                            // HorizontalPager will detect horizontal drag and swipe between photos smoothly!
+                            val currentPos = event.changes.firstOrNull()?.position ?: downPos
+                            if ((currentPos - downPos).getDistance() > touchSlop) {
+                                pastTouchSlop = true
+                            }
+                        }
+                    } while (event.changes.any { it.pressed })
+
+                    // Gesture ended (all pointers lifted)
+                    val upTime = System.currentTimeMillis()
+                    val tapDuration = upTime - downTime
+
+                    if (!pastTouchSlop && tapDuration < 300L) {
+                        // It was a tap (not a drag)!
+                        val timeSinceLast = upTime - lastTapTime
+                        val distSinceLast = (downPos - lastTapPos).getDistance()
+
+                        if (timeSinceLast in 40L..350L && distSinceLast < 100f) {
+                            // DOUBLE TAP!
+                            lastTapTime = 0L // reset so next tap is fresh
+                            coroutineScope.launch {
+                                if (scale > 1.15f) {
+                                    // Smooth Zoom Out to 1f
+                                    val startScale = scale
+                                    val startOffsetX = offset.x
+                                    val startOffsetY = offset.y
+                                    androidx.compose.animation.core.animate(
+                                        initialValue = 0f,
+                                        targetValue = 1f,
+                                        animationSpec = androidx.compose.animation.core.tween(
+                                            durationMillis = 250,
+                                            easing = androidx.compose.animation.core.FastOutSlowInEasing
+                                        )
+                                    ) { fraction, _ ->
+                                        scale = startScale + (1f - startScale) * fraction
+                                        offset = Offset(
+                                            x = startOffsetX * (1f - fraction),
+                                            y = startOffsetY * (1f - fraction)
+                                        )
+                                    }
+                                    scale = 1f
+                                    offset = Offset.Zero
+                                } else {
+                                    // Smooth Zoom In to 2.5f
+                                    val targetScale = 2.5f
+                                    val startScale = scale
+                                    androidx.compose.animation.core.animate(
+                                        initialValue = 0f,
+                                        targetValue = 1f,
+                                        animationSpec = androidx.compose.animation.core.tween(
+                                            durationMillis = 250,
+                                            easing = androidx.compose.animation.core.FastOutSlowInEasing
+                                        )
+                                    ) { fraction, _ ->
+                                        scale = startScale + (targetScale - startScale) * fraction
+                                    }
+                                    scale = targetScale
                                 }
-                                scale = targetScale
+                            }
+                        } else {
+                            // Potential SINGLE TAP
+                            lastTapTime = upTime
+                            lastTapPos = downPos
+                            coroutineScope.launch {
+                                kotlinx.coroutines.delay(350L)
+                                if (lastTapTime == upTime) {
+                                    onSingleTap()
+                                }
                             }
                         }
                     }
-                )
-            }
-            .transformable(
-                state = transformState,
-                enabled = true
-            ),
+
+                    if (scale <= 1.05f) {
+                        scale = 1f
+                        offset = Offset.Zero
+                    }
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
         AsyncImage(
@@ -525,7 +646,24 @@ fun KidsVideoPlayer(uri: Uri) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .clickable { showControls = !showControls },
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val downPos = down.position
+                    val downTime = System.currentTimeMillis()
+                    var moved = false
+                    val touchSlop = viewConfiguration.touchSlop
+                    do {
+                        val event = awaitPointerEvent()
+                        if (event.changes.any { (it.position - downPos).getDistance() > touchSlop }) {
+                            moved = true
+                        }
+                    } while (event.changes.any { it.pressed })
+                    if (!moved && System.currentTimeMillis() - downTime < 300L) {
+                        showControls = !showControls
+                    }
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
         AndroidView(
