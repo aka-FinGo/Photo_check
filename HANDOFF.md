@@ -44,6 +44,12 @@ Qo'shimcha rasmiy ro'yxat: [`FEATURES_REGISTRY.md`](file:///e:/Loyihalarim/GitHu
    - `UpdateManager.kt` da GitHub API 403 xatosiga qarshi avtomatik zero-rate-limit 302 redirect fallback kiritildi.
    - Sozlamalar pastidagi ortiqcha karta olib tashlanib, yangilanishni tekshirish Gamburger menyusidagi (Drawer) "Dastur Yangilanishi" orqali to'liq ishlaydigan qilindi.
 
+8. 🎬 **Kids Rejimida Video Preview (Thumbnail) va Almashuvchi Kiosk Tugmasi:**
+   - **Coil `VideoFrameDecoder.Factory()`:** `MainActivity.kt` da global `ImageLoader` ga ulandi.
+   - **Grid Thumbnail:** Har bir videoning 1-soniyasidan kadr (`videoFrameMillis(1000)`) olinadi (qora intro kadrlarni oldini olish uchun).
+   - **To'liq ekran:** Video ochilganda sifatli kadr va markazda katta neon Play tugmasi chiqadi, bosilganda video ijro etiladi.
+   - **📌 Almashuvchi Kiosk Tugmasi:** Kids paneli tepasida `Qadalgan 📌` (yashil) va `Qadash 🔓` (kulrang) o'zgaruvchan tugmasi qo'shildi. Ikkala holat ham qat'iy ravishda Barmoq izi (biometrika) so'raydi.
+
 ---
 
 ## 3. GitHub Actions CI/CD va Reliz Tizimi:

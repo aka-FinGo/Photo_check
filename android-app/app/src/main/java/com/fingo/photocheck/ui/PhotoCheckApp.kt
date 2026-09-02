@@ -219,6 +219,9 @@ fun PhotoCheckApp(
             whitelistedAlbums = whitelistedAlbums,
             remainingSeconds = remainingSeconds,
             isTimerExpired = isTimerExpired,
+            isScreenPinned = isScreenPinned,
+            onToggleScreenPinning = onToggleScreenPinning,
+            onRequestBiometricAuth = onRequestBiometricAuth,
             onOpenParentSettings = {
                 onRequestBiometricAuth("Ota-ona Sozlamalari") {
                     showParentSettings = true

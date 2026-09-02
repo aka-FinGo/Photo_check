@@ -11,12 +11,15 @@ Ushbu hujjat loyihadagi har bir funksiya, rejim, imo-ishora (gesture) va tugmala
 | **2-Barmoqli Zoom (Pinch-to-zoom)** | 2 ta barmoq bilan rasmni 1x dan 4.5x gacha kattalashtirish/kichraytirish va surish. | `KidsZoomableImage` |
 | **Double-tap Zoom** | Rasmni 2 marta tez bosganda 2.5x kattalashadi, yana 2 marta bosganda 1x holatga qaytadi. | `KidsZoomableImage` |
 | **Video Timeline (Scrubber)** | Video davomiyligi, joriy vaqt (`00:15 / 02:45`), slider bilan istalgan joyga o'tish, 10s oldinga/ortga, Play/Pause. | `KidsVideoPlayer` |
+| **Video Preview (Thumbnail)** | Gridda qora kadr bo'lmasligi uchun 1-soniyadagi kadr (`videoFrameMillis(1000)`) dekodlanadi va davomiyligi ko'rsatiladi. | `KidsSafeGalleryScreen.kt` |
+| **Video Preview Backdrop & Neon Play** | To'liq ekranda video ochilganda kadr va markazda katta neon Play tugmasi ko'rinadi. | `KidsVideoPlayer` |
 | **Minimalist Mi Gallery Uslubi** | Ekranda ortiqcha oldinga/orqaga tugmalari yo'q, faqat toza rasm va video ko'rinadi. | `KidsFullscreenViewer` |
 | **Oq Ro'yxat (Whitelisted Albums)** | Faqat ota-ona ruxsat bergan albomlar ko'rinadi. Begona albomlar, savatcha va boshqalar bloklangan. | `KidsPreferencesManager` |
 | **Ekran Vaqti Taymeri** | 15, 30, 45, 60 daqiqa. Vaqt tugagach "Uxlash vaqti 🌙" animatsion qulf ekrani chiqadi. | `KidsPreferencesManager` |
 | **Biometrik Qulflash** | Chiqish (Back press), Sozlamalarga kirish va taymerni ochishda barmoq izi, yuz yoki PIN kodi so'raladi. | `BiometricAuthManager` |
 | **Immersive Sticky Fullscreen** | Tepa bildirishnomalar paneli (status bar) yashiriladi. Bola tepadan tortsa ham panel avto-yashirinadi. | `MainActivity.kt` (`setImmersiveMode`) |
 | **Ekran Qadash (Kiosk Rejimi)** | `startLockTask()` orqali ilovani ekranga qadash. Home va Ilovalar ro'yxati tugmalari qulflanadi. | `MainActivity.kt` (`startLockTask`) |
+| **Tezkor Ekran Qadash Tugmasi (Almashuvchi)** | Kids paneli tepasida `Qadalgan 📌` / `Qadash 🔓` tugmasi. Qadash va bekor qilish qat'iy barmoq izi bilan ishlaydi. | `KidsSafeHeader` |
 
 ---
 

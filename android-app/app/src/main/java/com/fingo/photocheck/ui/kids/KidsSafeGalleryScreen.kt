@@ -40,6 +40,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
+import coil.decode.VideoFrameDecoder
+import coil.request.ImageRequest
+import coil.request.videoFrameMillis
 import com.fingo.photocheck.model.MediaItem
 import com.fingo.photocheck.model.MediaType
 
@@ -49,6 +52,9 @@ fun KidsSafeGalleryScreen(
     whitelistedAlbums: Set<String>,
     remainingSeconds: Long,
     isTimerExpired: Boolean,
+    isScreenPinned: Boolean = false,
+    onToggleScreenPinning: (Boolean) -> Unit = {},
+    onRequestBiometricAuth: (title: String, onSuccess: () -> Unit) -> Unit = { _, s -> s() },
     onOpenParentSettings: () -> Unit,
     onUnlockTimerRequest: () -> Unit
 ) {
@@ -112,6 +118,9 @@ fun KidsSafeGalleryScreen(
                 // Top Safe Header
                 KidsSafeHeader(
                     remainingSeconds = remainingSeconds,
+                    isScreenPinned = isScreenPinned,
+                    onToggleScreenPinning = onToggleScreenPinning,
+                    onRequestBiometricAuth = onRequestBiometricAuth,
                     onOpenSettings = onOpenParentSettings
                 )
 
@@ -160,8 +169,21 @@ fun KidsSafeGalleryScreen(
                                     .clickable { viewingItemIndex = index }
                             ) {
                                 Box(modifier = Modifier.fillMaxSize()) {
+                                    val context = LocalContext.current
+                                    val imageRequest = remember(item.uri, item.mediaType) {
+                                        ImageRequest.Builder(context)
+                                            .data(item.uri)
+                                            .apply {
+                                                if (item.mediaType == MediaType.VIDEO) {
+                                                    videoFrameMillis(1000)
+                                                    decoderFactory(VideoFrameDecoder.Factory())
+                                                }
+                                            }
+                                            .crossfade(true)
+                                            .build()
+                                    }
                                     AsyncImage(
-                                        model = item.uri,
+                                        model = imageRequest,
                                         contentDescription = item.displayName,
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier.fillMaxSize()
@@ -449,10 +471,19 @@ fun KidsZoomableImage(
 fun KidsVideoPlayer(uri: Uri) {
     val context = LocalContext.current
     var videoViewRef by remember { mutableStateOf<VideoView?>(null) }
-    var isPlaying by remember { mutableStateOf(true) }
+    var isPlaying by remember { mutableStateOf(false) }
     var currentPositionMs by remember { mutableLongStateOf(0L) }
     var totalDurationMs by remember { mutableLongStateOf(0L) }
     var showControls by remember { mutableStateOf(true) }
+
+    val previewRequest = remember(uri) {
+        ImageRequest.Builder(context)
+            .data(uri)
+            .videoFrameMillis(1000)
+            .decoderFactory(VideoFrameDecoder.Factory())
+            .crossfade(true)
+            .build()
+    }
 
     // Live progress tracker loop
     LaunchedEffect(videoViewRef, isPlaying) {
@@ -499,8 +530,9 @@ fun KidsVideoPlayer(uri: Uri) {
                     setOnPreparedListener { mp ->
                         mp.isLooping = true
                         totalDurationMs = duration.toLong()
-                        start()
-                        isPlaying = true
+                        if (isPlaying) {
+                            start()
+                        }
                     }
                     setOnCompletionListener {
                         isPlaying = false
@@ -511,7 +543,17 @@ fun KidsVideoPlayer(uri: Uri) {
             modifier = Modifier.fillMaxSize()
         )
 
-        // Center Play/Pause Overlay Button
+        // Video Preview Backdrop until video is actively playing
+        if (!isPlaying) {
+            AsyncImage(
+                model = previewRequest,
+                contentDescription = "Video Preview",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Center Play/Pause Overlay Button (Neon Style)
         AnimatedVisibility(
             visible = showControls || !isPlaying,
             enter = fadeIn(),
@@ -528,18 +570,20 @@ fun KidsVideoPlayer(uri: Uri) {
                             vv.start()
                             isPlaying = true
                         }
+                        showControls = true
                     }
                 },
                 modifier = Modifier
-                    .size(64.dp)
+                    .size(72.dp)
                     .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.65f))
+                    .background(Color(0xFF0F172A).copy(alpha = 0.85f))
+                    .border(2.dp, Color(0xFF38BDF8), CircleShape)
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "To'xtatish" else "Ijro",
-                    tint = Color.White,
-                    modifier = Modifier.size(36.dp)
+                    tint = Color(0xFFFDE047),
+                    modifier = Modifier.size(42.dp)
                 )
             }
         }
@@ -653,6 +697,9 @@ fun KidsVideoPlayer(uri: Uri) {
 @Composable
 fun KidsSafeHeader(
     remainingSeconds: Long,
+    isScreenPinned: Boolean = false,
+    onToggleScreenPinning: (Boolean) -> Unit = {},
+    onRequestBiometricAuth: (title: String, onSuccess: () -> Unit) -> Unit = { _, s -> s() },
     onOpenSettings: () -> Unit
 ) {
     Row(
@@ -674,6 +721,42 @@ fun KidsSafeHeader(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
+            // Screen Pinning (Kiosk) Alternating Toggle Button with Biometrics
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = if (isScreenPinned) Color(0xFF065F46) else Color(0xFF1E293B),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (isScreenPinned) Color(0xFF34D399) else Color(0xFF475569)
+                ),
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .clickable {
+                        val actionTitle = if (isScreenPinned) "Qadashni Bekor Qilish" else "Ilovani Ekranga Qadash"
+                        onRequestBiometricAuth(actionTitle) {
+                            onToggleScreenPinning(!isScreenPinned)
+                        }
+                    }
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isScreenPinned) Icons.Default.Lock else Icons.Default.LockOpen,
+                        contentDescription = null,
+                        tint = if (isScreenPinned) Color(0xFF34D399) else Color(0xFF94A3B8),
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (isScreenPinned) "Qadalgan 📌" else "Qadash 🔓",
+                        color = if (isScreenPinned) Color(0xFF34D399) else Color(0xFF94A3B8),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
             // Live Countdown Timer Badge
             val mins = remainingSeconds / 60
             val secs = remainingSeconds % 60

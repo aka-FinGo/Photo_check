@@ -99,6 +99,15 @@ class MainActivity : FragmentActivity() {
         // Setup Exit & Back Protection (Always requires Fingerprint/PIN)
         setupBackPressedProtection()
 
+        // Configure Coil to decode video thumbnails seamlessly with VideoFrameDecoder
+        val imageLoader = coil.ImageLoader.Builder(applicationContext)
+            .components {
+                add(coil.decode.VideoFrameDecoder.Factory())
+            }
+            .crossfade(true)
+            .build()
+        coil.Coil.setImageLoader(imageLoader)
+
         // Request storage permissions and observe gallery
         requestStoragePermissions()
 

@@ -220,23 +220,29 @@ class PhotoCheckApp {
         });
 
         // Screen Pinning (Kiosk Mode) Simulator
-        let isKioskPinned = false;
         document.getElementById('btn-toggle-kiosk')?.addEventListener('click', () => {
-            isKioskPinned = !isKioskPinned;
-            const badge = document.getElementById('kiosk-status-badge');
-            const text = document.getElementById('kiosk-btn-text');
-            const btn = document.getElementById('btn-toggle-kiosk');
-            if (isKioskPinned) {
-                if (badge) badge.style.display = 'inline-block';
-                if (text) text.textContent = 'Qadashni Bekor Qilish 🔓';
-                if (btn) btn.className = 'btn btn-danger';
-                this.showToast('Ilova ekranga qadandi (Kiosk Rejimi) 📌');
-            } else {
-                if (badge) badge.style.display = 'none';
-                if (text) text.textContent = 'Ilovani Ekranga Qadash 📌';
-                if (btn) btn.className = 'btn btn-outline';
-                this.showToast('Ekranni qadash bekor qilindi 🔓');
-            }
+            this.requestBiometric('Ilovani Ekranga Qadash / Bekor Qilish', () => {
+                state.isKioskPinned = !state.isKioskPinned;
+                this.updateKioskUI();
+                if (state.isKioskPinned) {
+                    this.showToast('Ilova ekranga qadandi (Kiosk Rejimi) 📌');
+                } else {
+                    this.showToast('Ekranni qadash bekor qilindi 🔓');
+                }
+            });
+        });
+
+        // Kids Header Kiosk Toggle Button (Alternating Pin / Unpin with Biometrics)
+        document.getElementById('btn-kids-kiosk-toggle')?.addEventListener('click', () => {
+            this.requestBiometric('Ilovani Ekranga Qadash / Bekor Qilish', () => {
+                state.isKioskPinned = !state.isKioskPinned;
+                this.updateKioskUI();
+                if (state.isKioskPinned) {
+                    this.showToast('Ilova ekranga qadandi (Kiosk Rejimi) 📌');
+                } else {
+                    this.showToast('Ekranni qadash bekor qilindi 🔓');
+                }
+            });
         });
 
         // Bulk Album Selection (Select All / Deselect All)
@@ -379,7 +385,7 @@ class PhotoCheckApp {
             let mediaContent = '';
             if (item.type === 'video') {
                 mediaContent = `
-                    <video src="${item.url}" muted></video>
+                    <video src="${item.url}#t=1.0" preload="metadata" muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
                     <div class="video-badge"><i class="fas fa-play"></i> ${item.duration || 'Video'}</div>
                 `;
             } else {
@@ -1093,6 +1099,34 @@ class PhotoCheckApp {
         }
         if (timerEl) {
             timerEl.textContent = state.timerMinutes > 0 ? `${state.timerMinutes} daqiqa` : 'Cheksiz';
+        }
+    }
+
+    updateKioskUI() {
+        const chip = document.getElementById('btn-kids-kiosk-toggle');
+        const icon = document.getElementById('kids-kiosk-icon');
+        const text = document.getElementById('kids-kiosk-text');
+        if (state.isKioskPinned) {
+            chip?.classList.add('pinned');
+            if (icon) icon.className = 'fas fa-lock';
+            if (text) text.textContent = 'Qadalgan 📌';
+        } else {
+            chip?.classList.remove('pinned');
+            if (icon) icon.className = 'fas fa-lock-open';
+            if (text) text.textContent = 'Qadash 🔓';
+        }
+
+        const badge = document.getElementById('kiosk-status-badge');
+        const btnText = document.getElementById('kiosk-btn-text');
+        const btn = document.getElementById('btn-toggle-kiosk');
+        if (state.isKioskPinned) {
+            if (badge) badge.style.display = 'inline-block';
+            if (btnText) btnText.textContent = 'Qadashni Bekor Qilish 🔓';
+            if (btn) btn.className = 'btn btn-danger';
+        } else {
+            if (badge) badge.style.display = 'none';
+            if (btnText) btnText.textContent = 'Ilovani Ekranga Qadash 📌';
+            if (btn) btn.className = 'btn btn-outline';
         }
     }
 
