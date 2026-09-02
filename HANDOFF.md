@@ -50,8 +50,8 @@ Qo'shimcha rasmiy ro'yxat: [`FEATURES_REGISTRY.md`](file:///e:/Loyihalarim/GitHu
    - **To'liq ekran:** Video ochilganda sifatli kadr va markazda katta neon Play tugmasi chiqadi, bosilganda video ijro etiladi.
    - **📌 Almashuvchi Kiosk Tugmasi:** Kids paneli tepasida `Qadalgan 📌` (yashil) va `Qadash 🔓` (kulrang) o'zgaruvchan tugmasi qo'shildi. Ikkala holat ham qat'iy ravishda Barmoq izi (biometrika) so'raydi.
 
-9. 🛠️ **CI/CD Kompilyatsiya Xatosi Bartaraf Etildi (`3e53a2d`):**
-   - `ParentSettingsScreen.kt` da Section 6 olib tashlanganda tushib qolgan ortiqcha qavs (`}`) olib tashlandi, barcha 6 ta asosiy Kotlin fayli qavslar balansi to'liq tekshirildi (Open == Close).
+9. 🛠️ **CI/CD Kompilyatsiya Xatosi Bartaraf Etildi:**
+   - `ParentSettingsScreen.kt` da ortiqcha qavs olib tashlandi va yetishmayotgan `android.widget.Toast` importi qo'shildi. Barcha fayllar sintaksisi 100% toza holatga keltirildi.
 
 ---
 
