@@ -175,7 +175,7 @@ fun KidsSafeGalleryScreen(
                                             .data(item.uri)
                                             .apply {
                                                 if (item.mediaType == MediaType.VIDEO) {
-                                                    videoFrameMillis(1000)
+                                                    videoFrameMillis(1000L)
                                                     decoderFactory(VideoFrameDecoder.Factory())
                                                 }
                                             }
@@ -479,7 +479,7 @@ fun KidsVideoPlayer(uri: Uri) {
     val previewRequest = remember(uri) {
         ImageRequest.Builder(context)
             .data(uri)
-            .videoFrameMillis(1000)
+            .videoFrameMillis(1000L)
             .decoderFactory(VideoFrameDecoder.Factory())
             .crossfade(true)
             .build()

@@ -112,7 +112,7 @@ object UpdateManager {
                     )
                 )
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // Proceed to Fallback
         }
 
