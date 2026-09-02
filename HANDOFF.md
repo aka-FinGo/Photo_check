@@ -46,9 +46,12 @@ Qo'shimcha rasmiy ro'yxat: [`FEATURES_REGISTRY.md`](file:///e:/Loyihalarim/GitHu
 
 8. 🎬 **Kids Rejimida Video Preview (Thumbnail) va Almashuvchi Kiosk Tugmasi:**
    - **Coil `VideoFrameDecoder.Factory()`:** `MainActivity.kt` da global `ImageLoader` ga ulandi.
-   - **Grid Thumbnail:** Har bir videoning 1-soniyasidan kadr (`videoFrameMillis(1000)`) olinadi (qora intro kadrlarni oldini olish uchun).
+   - **Grid Thumbnail:** Har bir videoning 1-soniyasidan kadr (`videoFrameMillis(1000L)`) olinadi (qora intro kadrlarni oldini olish uchun).
    - **To'liq ekran:** Video ochilganda sifatli kadr va markazda katta neon Play tugmasi chiqadi, bosilganda video ijro etiladi.
    - **📌 Almashuvchi Kiosk Tugmasi:** Kids paneli tepasida `Qadalgan 📌` (yashil) va `Qadash 🔓` (kulrang) o'zgaruvchan tugmasi qo'shildi. Ikkala holat ham qat'iy ravishda Barmoq izi (biometrika) so'raydi.
+
+9. 🛠️ **CI/CD Kompilyatsiya Xatosi Bartaraf Etildi (`3e53a2d`):**
+   - `ParentSettingsScreen.kt` da Section 6 olib tashlanganda tushib qolgan ortiqcha qavs (`}`) olib tashlandi, barcha 6 ta asosiy Kotlin fayli qavslar balansi to'liq tekshirildi (Open == Close).
 
 ---
 
