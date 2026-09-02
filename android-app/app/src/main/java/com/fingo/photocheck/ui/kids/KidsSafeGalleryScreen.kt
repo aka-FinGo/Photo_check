@@ -2,9 +2,7 @@ package com.fingo.photocheck.ui.kids
 
 import android.net.Uri
 import android.widget.VideoView
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -702,106 +700,219 @@ fun KidsSafeHeader(
     onRequestBiometricAuth: (title: String, onSuccess: () -> Unit) -> Unit = { _, s -> s() },
     onOpenSettings: () -> Unit
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("🎈", fontSize = 24.sp)
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                "PhotoCheck Kids",
-                color = Color(0xFFFDE047),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.ExtraBold
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0xFF0F172A).copy(alpha = 0.95f),
+                        Color(0xFF0A0E17).copy(alpha = 0.85f)
+                    )
+                )
             )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left: Compact Brand Pill
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFFFDE047), Color(0xFFF59E0B))
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("🎈", fontSize = 18.sp)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        "PhotoCheck",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.2).sp
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(if (isScreenPinned) Color(0xFF34D399) else Color(0xFFFDE047))
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            if (isScreenPinned) "XAVFSIZ QADALGAN" else "BOLALAR REJIMI",
+                            color = if (isScreenPinned) Color(0xFF34D399) else Color(0xFFFDE047),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.4.sp
+                        )
+                    }
+                }
+            }
+
+            // Right Action Controls (Pill Bar)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Screen Pinning (Kiosk) Mode Toggle Chip
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isScreenPinned) Color(0xFF065F46) else Color(0xFF1E293B).copy(alpha = 0.85f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (isScreenPinned) Color(0xFF34D399) else Color(0xFF38BDF8).copy(alpha = 0.4f)
+                    ),
+                    modifier = Modifier
+                        .height(32.dp)
+                        .clickable {
+                            val actionTitle = if (isScreenPinned) "Qadashni Bekor Qilish" else "Ilovani Ekranga Qadash"
+                            onRequestBiometricAuth(actionTitle) {
+                                onToggleScreenPinning(!isScreenPinned)
+                            }
+                        }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 9.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isScreenPinned) Icons.Default.Lock else Icons.Default.LockOpen,
+                            contentDescription = null,
+                            tint = if (isScreenPinned) Color(0xFFE6FFFA) else Color(0xFF38BDF8),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (isScreenPinned) "Qadalgan" else "Qadash",
+                            color = if (isScreenPinned) Color(0xFFE6FFFA) else Color(0xFF38BDF8),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                // Live Countdown Timer Badge
+                val mins = remainingSeconds / 60
+                val secs = remainingSeconds % 60
+                val formattedTime = String.format("%02d:%02d", mins, secs)
+
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (remainingSeconds < 180) Color(0xFF7F1D1D).copy(alpha = 0.85f) else Color(0xFF312E81).copy(alpha = 0.7f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (remainingSeconds < 180) Color(0xFFEF4444) else Color(0xFF818CF8).copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.HourglassBottom,
+                            contentDescription = null,
+                            tint = if (remainingSeconds < 180) Color(0xFFFCA5A5) else Color(0xFFA5B4FC),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = formattedTime,
+                            color = if (remainingSeconds < 180) Color(0xFFFCA5A5) else Color(0xFFA5B4FC),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                // Parental Settings Shield Button
+                IconButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF1E293B).copy(alpha = 0.85f))
+                        .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
+                ) {
+                    Icon(
+                        Icons.Default.Security,
+                        contentDescription = "Ota-ona sozlamalari",
+                        tint = Color(0xFFF59E0B),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // Screen Pinning (Kiosk) Alternating Toggle Button with Biometrics
+        // Sub-header Kiosk Alert Ribbon when pinned
+        AnimatedVisibility(
+            visible = isScreenPinned,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
             Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = if (isScreenPinned) Color(0xFF065F46) else Color(0xFF1E293B),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    if (isScreenPinned) Color(0xFF34D399) else Color(0xFF475569)
-                ),
+                color = Color(0xFF065F46).copy(alpha = 0.35f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF34D399).copy(alpha = 0.35f)),
+                shape = RoundedCornerShape(10.dp),
                 modifier = Modifier
-                    .padding(end = 8.dp)
-                    .clickable {
-                        val actionTitle = if (isScreenPinned) "Qadashni Bekor Qilish" else "Ilovani Ekranga Qadash"
-                        onRequestBiometricAuth(actionTitle) {
-                            onToggleScreenPinning(!isScreenPinned)
-                        }
+                    .fillMaxWidth()
+                    .padding(start = 14.dp, end = 14.dp, bottom = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF34D399))
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "Ekran qadalgan: Chiqish barmoq izi bilan himoyalangan 🔒",
+                            color = Color(0xFFA7F3D0),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
                     }
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isScreenPinned) Icons.Default.Lock else Icons.Default.LockOpen,
-                        contentDescription = null,
-                        tint = if (isScreenPinned) Color(0xFF34D399) else Color(0xFF94A3B8),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (isScreenPinned) "Qadalgan 📌" else "Qadash 🔓",
-                        color = if (isScreenPinned) Color(0xFF34D399) else Color(0xFF94A3B8),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFF047857),
+                        modifier = Modifier.clickable {
+                            onRequestBiometricAuth("Qadashni Bekor Qilish") {
+                                onToggleScreenPinning(false)
+                            }
+                        }
+                    ) {
+                        Text(
+                            "Yechish 🔓",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                 }
-            }
-            // Live Countdown Timer Badge
-            val mins = remainingSeconds / 60
-            val secs = remainingSeconds % 60
-            val formattedTime = String.format("%02d:%02d", mins, secs)
-
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = Color(0xFF312E81),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF818CF8)),
-                modifier = Modifier.padding(end = 8.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                ) {
-                    Icon(
-                        Icons.Default.HourglassBottom,
-                        contentDescription = null,
-                        tint = Color(0xFFA5B4FC),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = formattedTime,
-                        color = Color(0xFFA5B4FC),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            // Parental Lock Shield Button
-            IconButton(
-                onClick = onOpenSettings,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF1E293B))
-            ) {
-                Icon(
-                    Icons.Default.Security,
-                    contentDescription = "Ota-ona sozlamalari",
-                    tint = Color(0xFF38BDF8),
-                    modifier = Modifier.size(20.dp)
-                )
             }
         }
     }

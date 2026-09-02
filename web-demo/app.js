@@ -245,6 +245,15 @@ class PhotoCheckApp {
             });
         });
 
+        // Ribbon Quick Unpin button
+        document.getElementById('btn-ribbon-unpin')?.addEventListener('click', () => {
+            this.requestBiometric('Qadashni Bekor Qilish', () => {
+                state.isKioskPinned = false;
+                this.updateKioskUI();
+                this.showToast('Ekranni qadash bekor qilindi 🔓');
+            });
+        });
+
         // Bulk Album Selection (Select All / Deselect All)
         document.getElementById('btn-select-all-albums')?.addEventListener('click', () => {
             const allFolders = Array.from(new Set(state.media.map(m => m.folder)));
@@ -1106,14 +1115,27 @@ class PhotoCheckApp {
         const chip = document.getElementById('btn-kids-kiosk-toggle');
         const icon = document.getElementById('kids-kiosk-icon');
         const text = document.getElementById('kids-kiosk-text');
+        const ribbon = document.getElementById('kids-pinned-ribbon');
+        const statusIndicator = document.getElementById('kids-status-indicator');
+
         if (state.isKioskPinned) {
             chip?.classList.add('pinned');
             if (icon) icon.className = 'fas fa-lock';
-            if (text) text.textContent = 'Qadalgan 📌';
+            if (text) text.textContent = 'Qadalgan';
+            if (ribbon) ribbon.classList.remove('hidden');
+            if (statusIndicator) {
+                statusIndicator.classList.add('pinned');
+                statusIndicator.innerHTML = '<span class="status-dot green"></span> XAVFSIZ QADALGAN';
+            }
         } else {
             chip?.classList.remove('pinned');
             if (icon) icon.className = 'fas fa-lock-open';
-            if (text) text.textContent = 'Qadash 🔓';
+            if (text) text.textContent = 'Qadash';
+            if (ribbon) ribbon.classList.add('hidden');
+            if (statusIndicator) {
+                statusIndicator.classList.remove('pinned');
+                statusIndicator.innerHTML = '<span class="status-dot"></span> BOLALAR REJIMI';
+            }
         }
 
         const badge = document.getElementById('kiosk-status-badge');

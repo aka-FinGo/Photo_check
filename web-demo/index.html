@@ -45,25 +45,37 @@
             <!-- Kids Mode Top Header -->
             <header class="kids-header" id="kids-header">
                 <div class="header-left">
-                    <span class="kids-logo">🎈 Photo<span class="logo-accent">Check Kids</span></span>
+                    <div class="kids-brand-box">🎈</div>
+                    <div class="kids-brand-info">
+                        <span class="kids-brand-title">PhotoCheck</span>
+                        <span class="kids-brand-badge" id="kids-status-indicator">
+                            <span class="status-dot"></span> BOLALAR REJIMI
+                        </span>
+                    </div>
                 </div>
                 <div class="header-right">
+                    <button class="kiosk-header-chip" id="btn-kids-kiosk-toggle" title="Ekranga Qadash / Bekor Qilish">
+                        <i class="fas fa-lock-open" id="kids-kiosk-icon"></i>
+                        <span id="kids-kiosk-text">Qadash</span>
+                    </button>
                     <div class="timer-pill" id="kids-timer-pill" title="Ekran vaqti">
                         <i class="fas fa-hourglass-half"></i>
                         <span id="kids-timer-text">29:59</span>
                     </div>
-                    <button class="kiosk-header-chip" id="btn-kids-kiosk-toggle" title="Ekranga Qadash / Bekor Qilish">
-                        <i class="fas fa-lock-open" id="kids-kiosk-icon"></i>
-                        <span id="kids-kiosk-text">Qadash 🔓</span>
-                    </button>
-                    <button class="btn-donate-quick" id="btn-open-donate-kids" title="Donat qilish">
-                        ☕
-                    </button>
                     <button class="btn-parent-shield" id="btn-parent-shield" title="Ota-ona sozlamalari">
                         <i class="fas fa-shield-halved"></i>
                     </button>
                 </div>
             </header>
+
+            <!-- Under-Header Kiosk Pinning Ribbon (Dynamic) -->
+            <div class="kids-pinned-ribbon hidden" id="kids-pinned-ribbon">
+                <div class="ribbon-text">
+                    <span class="status-dot green"></span>
+                    <span>Ekran qadalgan: Chiqish barmoq izi bilan himoyalangan 🔒</span>
+                </div>
+                <button class="btn-ribbon-unpin" id="btn-ribbon-unpin">Yechish 🔓</button>
+            </div>
 
             <!-- 1:1 Slidebox Top Header (Pro mode) -->
             <header class="app-header hidden" id="pro-header">

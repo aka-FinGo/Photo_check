@@ -53,6 +53,12 @@ Qo'shimcha rasmiy ro'yxat: [`FEATURES_REGISTRY.md`](file:///e:/Loyihalarim/GitHu
 9. 🛠️ **CI/CD Kompilyatsiya Xatosi Bartaraf Etildi:**
    - `ParentSettingsScreen.kt` da ortiqcha qavs olib tashlandi va yetishmayotgan `android.widget.Toast` importi qo'shildi. Barcha fayllar sintaksisi 100% toza holatga keltirildi.
 
+10. 🎨 **Kids Rejimi Header Dizayni Tasteskill Darajasiga Ko'tarildi:**
+   - **Ixcham Brend Bloki:** Katta matn o'rniga zamonaviy gradient `[🎈]` nishoni va `PhotoCheck` + jonli holat nuqtasi (`BOLALAR REJIMI` / `XAVFSIZ QADALGAN`) o'rnatildi.
+   - **Toza Qadash Chip:** Kiosk tugmasi kengligi qisqartirildi, ortiqcha takroriy emojilar olib tashlandi, 32dp neo-glass uslubiga keltirildi (`Qadash` / `Qadalgan`).
+   - **Nol Sig'maslik (Zero Overflow):** Barcha boshqaruv elementlari (Brend + Qadash + Taymer + Qalqon) istalgan 360dp+ ekranlarda siqilishsiz yoki qirqilishsiz 100% mutanosib joylashdi.
+   - **📌 Ekran Qadalgan Ribon:** Kiosk faol bo'lganda silliq animatsiya bilan pastga tushuvchi yashil xavfsizlik lentasi va barmoq izi bilan tezkor `Yechish 🔓` tugmasi qo'shildi.
+
 ---
 
 ## 3. GitHub Actions CI/CD va Reliz Tizimi:
