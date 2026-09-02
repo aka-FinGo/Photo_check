@@ -59,6 +59,12 @@ Qo'shimcha rasmiy ro'yxat: [`FEATURES_REGISTRY.md`](file:///e:/Loyihalarim/GitHu
    - **Nol Sig'maslik (Zero Overflow):** Barcha boshqaruv elementlari (Brend + Qadash + Taymer + Qalqon) istalgan 360dp+ ekranlarda siqilishsiz yoki qirqilishsiz 100% mutanosib joylashdi.
    - **📌 Ekran Qadalgan Ribon:** Kiosk faol bo'lganda silliq animatsiya bilan pastga tushuvchi yashil xavfsizlik lentasi va barmoq izi bilan tezkor `Yechish 🔓` tugmasi qo'shildi.
 
+11. 🔍 **Double-Tap Zoom In / Zoom Out va Galereya Scroll Holatini Saqlash:**
+   - **Double-Tap Zoom Toggle:** `KidsZoomableImage` da 2 marta tez bosilganda agar rasm kattalashgan bo'lsa (`scale > 1.15f`) silliq 250ms animatsiya bilan `scale = 1f` va `offset = Offset.Zero` ga qaytadi (Zoom Out). Agar kattalashmagan bo'lsa silliq `scale = 2.5f` ga kattalashadi (Zoom In).
+   - **Silliq 2 Barmoqli Chimdish:** `Modifier.transformable` orqali 2 barmoqli erkin masshtab va surish ta'minlandi; `scale == 1f` paytida gorizontal 1 barmoqli surish `HorizontalPager` orqali fotosuratlar o'rtasida erkin o'tadi.
+   - **📍 Galereya Scroll Holati Saqlandi (Zero Reset):** `KidsSafeGalleryScreen` da `rememberLazyGridState()` saqlanadi va to'liq ekrandan "Ortga" (<-) tugmasi yoki Android tizim back tugmasi bosilganda (`BackHandler`) `gridState.scrollToItem(lastViewedIndex)` chaqiriladi. Galereya hech qachon 0-indeksga sakrab ketmaydi, aynan qoldirilgan rasmda turadi.
+   - **Web Demo Sinxronizatsiyasi:** `web-demo/` da ham double-tap/double-click zoom toggle, koordinataga qarab kattalashish, va tomoshabin yopilganda oxirgi ko'rilgan kartochkaga silliq fokuslanish (`scrollIntoView`) ulandi.
+
 ---
 
 ## 3. GitHub Actions CI/CD va Reliz Tizimi:

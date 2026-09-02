@@ -2,6 +2,7 @@ package com.fingo.photocheck.ui.kids
 
 import android.net.Uri
 import android.widget.VideoView
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -13,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -58,6 +60,8 @@ fun KidsSafeGalleryScreen(
 ) {
     var selectedAlbumFilter by remember { mutableStateOf("BARCHASI") }
     var viewingItemIndex by remember { mutableStateOf<Int?>(null) }
+    val gridState = rememberLazyGridState()
+    val coroutineScope = rememberCoroutineScope()
 
     // Filter media items to only those in whitelisted albums
     val filteredMedia = remember(mediaList, whitelistedAlbums, selectedAlbumFilter) {
@@ -108,7 +112,12 @@ fun KidsSafeGalleryScreen(
             KidsSystemGalleryViewer(
                 mediaList = filteredMedia,
                 initialIndex = initialIndex,
-                onClose = { viewingItemIndex = null }
+                onClose = { lastIndex ->
+                    viewingItemIndex = null
+                    coroutineScope.launch {
+                        gridState.scrollToItem(lastIndex.coerceIn(0, (filteredMedia.size - 1).coerceAtLeast(0)))
+                    }
+                }
             )
         } else {
             // Kids Main Screen (Album Grid)
@@ -151,6 +160,7 @@ fun KidsSafeGalleryScreen(
                 if (filteredMedia.isNotEmpty()) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
+                        state = gridState,
                         contentPadding = PaddingValues(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -260,13 +270,18 @@ fun KidsSafeGalleryScreen(
 fun KidsSystemGalleryViewer(
     mediaList: List<MediaItem>,
     initialIndex: Int,
-    onClose: () -> Unit
+    onClose: (lastViewedIndex: Int) -> Unit
 ) {
     val pagerState = rememberPagerState(
         initialPage = initialIndex.coerceIn(0, (mediaList.size - 1).coerceAtLeast(0)),
         pageCount = { mediaList.size }
     )
     var showControls by remember { mutableStateOf(true) }
+
+    // Intercept hardware / gesture back button to close fullscreen and preserve gallery scroll position
+    BackHandler {
+        onClose(pagerState.currentPage)
+    }
 
     Box(
         modifier = Modifier
@@ -288,7 +303,7 @@ fun KidsSystemGalleryViewer(
                     // Video Player
                     KidsVideoPlayer(uri = item.uri)
                 } else {
-                    // Photo View with Pinch & Double-Tap Zoom
+                    // Photo View with Pinch & Double-Tap Smooth Zoom
                     KidsZoomableImage(
                         model = item.uri,
                         contentDescription = item.displayName,
@@ -298,7 +313,7 @@ fun KidsSystemGalleryViewer(
             }
         }
 
-        // Clean Top Bar (Back button & Photo Index counter)
+        // Clean Neo-Glass Top Bar (Back button & Photo Index counter)
         AnimatedVisibility(
             visible = showControls,
             enter = fadeIn(),
@@ -310,55 +325,78 @@ fun KidsSystemGalleryViewer(
                     .fillMaxWidth()
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color.Black.copy(alpha = 0.7f), Color.Transparent)
+                            colors = listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
                         )
                     )
-                    .padding(top = 36.dp, bottom = 20.dp, start = 16.dp, end = 16.dp),
+                    .padding(top = 36.dp, bottom = 16.dp, start = 16.dp, end = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = onClose,
+                    onClick = { onClose(pagerState.currentPage) },
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.5f))
+                        .background(Color(0xFF1E293B).copy(alpha = 0.85f))
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
                 ) {
                     Icon(
                         Icons.Default.ArrowBack,
                         contentDescription = "Ortga",
                         tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color.Black.copy(alpha = 0.5f))
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color(0xFF1E293B).copy(alpha = 0.85f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier.height(34.dp)
                 ) {
-                    Text(
-                        text = "${pagerState.currentPage + 1} / ${mediaList.size}",
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${pagerState.currentPage + 1} / ${mediaList.size}",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-// Pinch-to-zoom (2-finger) & Double-tap zoomable image component (allows HorizontalPager swiping when not zoomed)
+// Pinch-to-zoom (2-finger) & Smooth Double-tap Zoom In / Zoom Out (allows HorizontalPager swiping when not zoomed)
 @Composable
 fun KidsZoomableImage(
     model: Any?,
     contentDescription: String?,
     onSingleTap: () -> Unit
 ) {
+    val coroutineScope = rememberCoroutineScope()
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
+
+    val transformState = rememberTransformableState { zoomChange, offsetChange, _ ->
+        val newScale = (scale * zoomChange).coerceIn(1f, 4.5f)
+        scale = newScale
+        if (newScale > 1.05f) {
+            val maxOffsetX = 900f * (newScale - 1f)
+            val maxOffsetY = 900f * (newScale - 1f)
+            offset = Offset(
+                x = (offset.x + offsetChange.x * newScale).coerceIn(-maxOffsetX, maxOffsetX),
+                y = (offset.y + offsetChange.y * newScale).coerceIn(-maxOffsetY, maxOffsetY)
+            )
+        } else {
+            scale = 1f
+            offset = Offset.Zero
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -367,85 +405,52 @@ fun KidsZoomableImage(
                 detectTapGestures(
                     onTap = { onSingleTap() },
                     onDoubleTap = {
-                        if (scale > 1.05f) {
-                            scale = 1f
-                            offset = Offset.Zero
-                        } else {
-                            scale = 2.5f
-                            offset = Offset.Zero
+                        coroutineScope.launch {
+                            if (scale > 1.15f) {
+                                // Smooth Zoom Out to 1f
+                                val startScale = scale
+                                val startOffsetX = offset.x
+                                val startOffsetY = offset.y
+                                androidx.compose.animation.core.animate(
+                                    initialValue = 0f,
+                                    targetValue = 1f,
+                                    animationSpec = androidx.compose.animation.core.tween(
+                                        durationMillis = 250,
+                                        easing = androidx.compose.animation.core.FastOutSlowInEasing
+                                    )
+                                ) { fraction, _ ->
+                                    scale = startScale + (1f - startScale) * fraction
+                                    offset = Offset(
+                                        x = startOffsetX * (1f - fraction),
+                                        y = startOffsetY * (1f - fraction)
+                                    )
+                                }
+                                scale = 1f
+                                offset = Offset.Zero
+                            } else {
+                                // Smooth Zoom In to 2.5f
+                                val targetScale = 2.5f
+                                val startScale = scale
+                                androidx.compose.animation.core.animate(
+                                    initialValue = 0f,
+                                    targetValue = 1f,
+                                    animationSpec = androidx.compose.animation.core.tween(
+                                        durationMillis = 250,
+                                        easing = androidx.compose.animation.core.FastOutSlowInEasing
+                                    )
+                                ) { fraction, _ ->
+                                    scale = startScale + (targetScale - startScale) * fraction
+                                }
+                                scale = targetScale
+                            }
                         }
                     }
                 )
             }
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    var zoom = 1f
-                    var pan = Offset.Zero
-                    var pastTouchSlop = false
-                    val touchSlop = viewConfiguration.touchSlop
-
-                    awaitFirstDown(requireUnconsumed = false)
-
-                    do {
-                        val event = awaitPointerEvent()
-                        val canceled = event.changes.any { it.isConsumed }
-                        if (canceled) break
-
-                        val pointerCount = event.changes.size
-
-                        if (pointerCount >= 2) {
-                            val zoomChange = event.calculateZoom()
-                            val panChange = event.calculatePan()
-
-                            if (!pastTouchSlop) {
-                                zoom *= zoomChange
-                                pan += panChange
-
-                                val centroidSize = event.calculateCentroidSize(useCurrent = false)
-                                val zoomMotion = kotlin.math.abs(1 - zoom) * centroidSize
-                                val panMotion = pan.getDistance()
-
-                                if (zoomMotion > touchSlop || panMotion > touchSlop) {
-                                    pastTouchSlop = true
-                                }
-                            }
-
-                            if (pastTouchSlop) {
-                                val newScale = (scale * zoomChange).coerceIn(1f, 4.5f)
-                                scale = newScale
-                                if (scale > 1.05f) {
-                                    val maxOffsetX = 800f * (scale - 1f)
-                                    val maxOffsetY = 800f * (scale - 1f)
-                                    offset = Offset(
-                                        x = (offset.x + panChange.x * scale).coerceIn(-maxOffsetX, maxOffsetX),
-                                        y = (offset.y + panChange.y * scale).coerceIn(-maxOffsetY, maxOffsetY)
-                                    )
-                                } else {
-                                    scale = 1f
-                                    offset = Offset.Zero
-                                }
-                                event.changes.forEach { it.consume() }
-                            }
-                        } else if (pointerCount == 1 && scale > 1.05f) {
-                            val panChange = event.calculatePan()
-                            val maxOffsetX = 800f * (scale - 1f)
-                            val maxOffsetY = 800f * (scale - 1f)
-                            offset = Offset(
-                                x = (offset.x + panChange.x).coerceIn(-maxOffsetX, maxOffsetX),
-                                y = (offset.y + panChange.y).coerceIn(-maxOffsetY, maxOffsetY)
-                            )
-                            event.changes.forEach { it.consume() }
-                        } else {
-                            // 1 finger and NOT zoomed: do NOT consume events so HorizontalPager swipes freely!
-                        }
-                    } while (event.changes.any { it.pressed })
-
-                    if (scale <= 1.05f) {
-                        scale = 1f
-                        offset = Offset.Zero
-                    }
-                }
-            },
+            .transformable(
+                state = transformState,
+                enabled = true
+            ),
         contentAlignment = Alignment.Center
     ) {
         AsyncImage(

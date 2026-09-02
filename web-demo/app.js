@@ -306,7 +306,36 @@ class PhotoCheckApp {
 
         // Kids Fullscreen Viewer Navigation
         document.getElementById('kids-viewer-close')?.addEventListener('click', () => {
-            document.getElementById('kids-viewer-modal')?.classList.remove('active');
+            this.closeKidsFullscreen();
+        });
+
+        // Close when clicking modal backdrop
+        document.getElementById('kids-viewer-modal')?.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('kids-viewer-modal')) {
+                this.closeKidsFullscreen();
+            }
+        });
+
+        // Keyboard navigation (Escape to close, Arrow keys to navigate)
+        document.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('kids-viewer-modal');
+            if (!modal || !modal.classList.contains('active')) return;
+
+            if (e.key === 'Escape') {
+                this.closeKidsFullscreen();
+            } else if (e.key === 'ArrowRight') {
+                const list = this.getFilteredKidsMedia();
+                if (state.viewingKidIndex < list.length - 1) {
+                    state.viewingKidIndex++;
+                    this.showKidsFullscreen(list[state.viewingKidIndex]);
+                }
+            } else if (e.key === 'ArrowLeft') {
+                const list = this.getFilteredKidsMedia();
+                if (state.viewingKidIndex > 0) {
+                    state.viewingKidIndex--;
+                    this.showKidsFullscreen(list[state.viewingKidIndex]);
+                }
+            }
         });
 
         document.getElementById('btn-kid-prev')?.addEventListener('click', () => {
@@ -390,6 +419,8 @@ class PhotoCheckApp {
         items.forEach((item, index) => {
             const card = document.createElement('div');
             card.className = 'kid-card';
+            card.dataset.index = index;
+            card.setAttribute('data-index', index);
             
             let mediaContent = '';
             if (item.type === 'video') {
@@ -491,46 +522,97 @@ class PhotoCheckApp {
                 });
             }
         } else {
-            content.innerHTML = `<img src="${item.url}" alt="${item.title}" style="max-width: 100%; max-height: 85vh; object-fit: contain;">`;
+            content.classList.remove('is-zoomed');
+            content.innerHTML = `<img src="${item.url}" alt="${item.title}">`;
         }
 
-        // Double tap & 2-Finger Pinch Zoom for Images
+        // Double tap, Double click & Pinch Zoom for Images
         let currentScale = 1;
-        let lastTap = 0;
-        let initialPinchDist = 0;
         let startScale = 1;
+        let initialPinchDist = 0;
+        let lastTapTime = 0;
+        let lastTapX = 0;
+        let lastTapY = 0;
+        let lastTouchZoomTime = 0;
+        let startX = 0;
+        let startY = 0;
+        let isDragging = false;
+        let isSwiping = false;
 
         const imgEl = content.querySelector('img');
+
+        // Smooth Zoom Toggle Function
+        const toggleZoom = (clientX, clientY) => {
+            if (!imgEl) return;
+
+            // Enforce smooth CSS transition on transform
+            imgEl.style.transition = 'transform 0.25s cubic-bezier(0.2, 0, 0, 1)';
+
+            if (currentScale > 1.2) {
+                // If image is already zoomed (currentScale > 1.2), smoothly zoom out to scale 1 (centered)
+                currentScale = 1;
+                imgEl.style.transform = 'scale(1)';
+                content.classList.remove('is-zoomed');
+            } else {
+                // If image is not zoomed (currentScale <= 1.2), smoothly zoom in to scale 2.5 centered on click position
+                const rect = imgEl.getBoundingClientRect();
+                let originX = 50;
+                let originY = 50;
+                if (rect.width > 0 && rect.height > 0) {
+                    originX = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+                    originY = Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100));
+                }
+                imgEl.style.transformOrigin = `${originX}% ${originY}%`;
+                currentScale = 2.5;
+                imgEl.style.transform = 'scale(2.5)';
+                content.classList.add('is-zoomed');
+            }
+        };
+
         if (imgEl) {
             imgEl.draggable = false;
             imgEl.ondragstart = (e) => e.preventDefault();
-            imgEl.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
+            imgEl.style.transition = 'transform 0.25s cubic-bezier(0.2, 0, 0, 1)';
             imgEl.style.transformOrigin = 'center center';
             imgEl.style.userSelect = 'none';
             imgEl.style.webkitUserDrag = 'none';
 
-            content.ondblclick = () => {
-                currentScale = currentScale > 1.2 ? 1 : 2.5;
-                imgEl.style.transform = `scale(${currentScale})`;
+            // Reset origin to center when zoom-out transition completes
+            imgEl.addEventListener('transitionend', (e) => {
+                if (e.propertyName === 'transform' && currentScale === 1) {
+                    imgEl.style.transformOrigin = 'center center';
+                }
+            });
+
+            // Desktop double-click zoom toggle
+            content.ondblclick = (e) => {
+                // Prevent duplicate trigger if double-tap just fired on touch devices
+                if (Date.now() - lastTouchZoomTime < 600) return;
+                toggleZoom(e.clientX, e.clientY);
             };
 
+            // Desktop mouse wheel zoom
             content.onwheel = (e) => {
                 e.preventDefault();
+                imgEl.style.transition = 'none';
                 currentScale += e.deltaY * -0.002;
                 currentScale = Math.min(Math.max(1, currentScale), 4.5);
                 imgEl.style.transform = `scale(${currentScale})`;
+                if (currentScale > 1.2) {
+                    content.classList.add('is-zoomed');
+                } else {
+                    content.classList.remove('is-zoomed');
+                    if (currentScale === 1) imgEl.style.transformOrigin = 'center center';
+                }
             };
         }
 
-        // Attach Mi Gallery Horizontal Swipe Gestures & Pinch zoom
-        let startX = 0;
-        let startY = 0;
-        let isSwiping = false;
-
+        // Touch Gestures (Pinch-zoom, Double-tap, Horizontal swipe, Background tap)
         const handleTouchStart = (e) => {
             if (e.touches && e.touches.length === 2 && imgEl) {
                 // 2-finger pinch start
                 isSwiping = false;
+                isDragging = false;
                 initialPinchDist = Math.hypot(
                     e.touches[0].clientX - e.touches[1].clientX,
                     e.touches[0].clientY - e.touches[1].clientY
@@ -541,44 +623,84 @@ class PhotoCheckApp {
 
             if (e.touches && e.touches.length > 1) return;
 
-            const now = new Date().getTime();
-            const timesince = now - lastTap;
-            if (timesince < 300 && timesince > 0 && imgEl) {
-                // Double tap zoom
-                currentScale = currentScale > 1.2 ? 1 : 2.5;
-                imgEl.style.transform = `scale(${currentScale})`;
-                lastTap = 0;
-                return;
-            }
-            lastTap = now;
-
             const touch = e.touches ? e.touches[0] : e;
+            const now = Date.now();
+
+            if (e.touches && imgEl) {
+                const timesince = now - lastTapTime;
+                const distFromLast = Math.hypot(touch.clientX - lastTapX, touch.clientY - lastTapY);
+
+                if (timesince < 300 && timesince > 40 && distFromLast < 50) {
+                    // Double tap zoom toggle
+                    lastTapTime = 0;
+                    lastTouchZoomTime = now;
+                    toggleZoom(touch.clientX, touch.clientY);
+                    if (e.cancelable && e.preventDefault) e.preventDefault();
+                    return;
+                }
+                lastTapTime = now;
+                lastTapX = touch.clientX;
+                lastTapY = touch.clientY;
+            }
+
             startX = touch.clientX;
             startY = touch.clientY;
+            isDragging = false;
             isSwiping = true;
         };
 
         const handleTouchMove = (e) => {
             if (e.touches && e.touches.length === 2 && imgEl && initialPinchDist > 0) {
                 // 2-finger pinch move
-                e.preventDefault();
+                if (e.cancelable) e.preventDefault();
                 const dist = Math.hypot(
                     e.touches[0].clientX - e.touches[1].clientX,
                     e.touches[0].clientY - e.touches[1].clientY
                 );
                 currentScale = Math.min(Math.max(1, startScale * (dist / initialPinchDist)), 4.5);
+                imgEl.style.transition = 'none';
                 imgEl.style.transform = `scale(${currentScale})`;
+                if (currentScale > 1.2) {
+                    content.classList.add('is-zoomed');
+                } else {
+                    content.classList.remove('is-zoomed');
+                }
+                return;
+            }
+
+            const touch = e.touches ? e.touches[0] : e;
+            const diffX = touch.clientX - startX;
+            const diffY = touch.clientY - startY;
+
+            if (Math.abs(diffX) > 8 || Math.abs(diffY) > 8) {
+                isDragging = true;
             }
         };
 
         const handleTouchEnd = (e) => {
             if (e.touches && e.touches.length < 2) {
                 initialPinchDist = 0;
+                if (imgEl) {
+                    imgEl.style.transition = 'transform 0.25s cubic-bezier(0.2, 0, 0, 1)';
+                    if (currentScale < 1.05) {
+                        currentScale = 1;
+                        imgEl.style.transform = 'scale(1)';
+                        imgEl.style.transformOrigin = 'center center';
+                        content.classList.remove('is-zoomed');
+                    }
+                }
             }
 
             if (!isSwiping) return;
             isSwiping = false;
-            if (currentScale > 1.1) return; // don't swipe while zoomed in
+
+            // Background click / tap to close (only if not dragged and clicked on background)
+            if (!isDragging && (e.target === content || e.target === modal)) {
+                this.closeKidsFullscreen();
+                return;
+            }
+
+            if (currentScale > 1.1) return; // don't swipe between items while zoomed in
 
             const touch = e.changedTouches ? e.changedTouches[0] : e;
             const diffX = touch.clientX - startX;
@@ -605,10 +727,80 @@ class PhotoCheckApp {
         content.ontouchstart = handleTouchStart;
         content.ontouchmove = handleTouchMove;
         content.ontouchend = handleTouchEnd;
-        content.onmousedown = handleTouchStart;
-        content.onmouseup = handleTouchEnd;
+
+        // Desktop mouse drag for swipe and background click to close
+        content.onmousedown = (e) => {
+            startX = e.clientX;
+            startY = e.clientY;
+            isDragging = false;
+            isSwiping = true;
+        };
+
+        content.onmousemove = (e) => {
+            if (!isSwiping) return;
+            const diffX = e.clientX - startX;
+            const diffY = e.clientY - startY;
+            if (Math.abs(diffX) > 8 || Math.abs(diffY) > 8) {
+                isDragging = true;
+            }
+        };
+
+        content.onmouseup = (e) => {
+            if (!isSwiping) return;
+            isSwiping = false;
+
+            // Background click to close on desktop
+            if (!isDragging && (e.target === content || e.target === modal)) {
+                this.closeKidsFullscreen();
+                return;
+            }
+
+            if (currentScale > 1.1) return;
+
+            const diffX = e.clientX - startX;
+            const diffY = e.clientY - startY;
+
+            if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY)) {
+                if (diffX < 0) {
+                    if (state.viewingKidIndex < list.length - 1) {
+                        state.viewingKidIndex++;
+                        this.showKidsFullscreen(list[state.viewingKidIndex]);
+                    }
+                } else {
+                    if (state.viewingKidIndex > 0) {
+                        state.viewingKidIndex--;
+                        this.showKidsFullscreen(list[state.viewingKidIndex]);
+                    }
+                }
+            }
+        };
 
         modal.classList.add('active');
+    }
+
+    // Close Kids Fullscreen Viewer with Gallery Scroll Preservation
+    closeKidsFullscreen() {
+        const modal = document.getElementById('kids-viewer-modal');
+        const content = document.getElementById('kids-viewer-content');
+        if (!modal || !modal.classList.contains('active')) return;
+
+        modal.classList.remove('active');
+        if (content) content.classList.remove('is-zoomed');
+
+        // Stop video if active
+        const video = document.getElementById('kids-active-video');
+        if (video) {
+            video.pause();
+        }
+
+        // Gallery scroll position preservation:
+        // Automatically scroll the gallery grid to the exact last-viewed card so the user never loses their position
+        const targetCard = document.querySelector(`.kid-card[data-index="${state.viewingKidIndex}"]`);
+        if (targetCard) {
+            targetCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            targetCard.classList.add('kid-card-returned');
+            setTimeout(() => targetCard.classList.remove('kid-card-returned'), 1200);
+        }
     }
 
     // Parent Settings Album Checkboxes
