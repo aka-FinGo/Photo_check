@@ -91,6 +91,9 @@
                     <button class="btn-donate-quick" id="btn-open-donate-pro" title="Dasturchini qo'llab-quvvatlash">
                         <span class="chip-icon">☕</span> <span>Donat</span>
                     </button>
+                    <button class="btn-favs-header" id="btn-open-favs" title="Sevimlilar">
+                        <i class="fas fa-heart" style="color: #fb7185;"></i> <span id="favs-header-count">0</span>
+                    </button>
                     <button class="btn-trash-header" id="btn-open-trash" title="Savat">
                         <i class="fas fa-trash-alt"></i> <span id="trash-header-count">0</span>
                     </button>
@@ -268,12 +271,15 @@
                             <h3>⏳ Ekran Vaqti Taymeri</h3>
                             <button class="btn-link" id="btn-reset-timer">Qayta Boshlash</button>
                         </div>
-                        <div class="timer-chips">
+                        <div class="timer-chips" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                            <button class="timer-chip" data-min="5">5 daq</button>
+                            <button class="timer-chip" data-min="10">10 daq</button>
                             <button class="timer-chip" data-min="15">15 daq</button>
+                            <button class="timer-chip" data-min="20">20 daq</button>
+                            <button class="timer-chip" data-min="25">25 daq</button>
                             <button class="timer-chip active" data-min="30">30 daq</button>
-                            <button class="timer-chip" data-min="45">45 daq</button>
-                            <button class="timer-chip" data-min="60">1 soat</button>
                             <button class="timer-chip" data-min="0">Cheksiz</button>
+                            <button class="timer-chip" id="btn-custom-timer-web">✏️ Qo'lda...</button>
                         </div>
                     </div>
 

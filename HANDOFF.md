@@ -93,9 +93,30 @@ Qo'shimcha rasmiy ro'yxat: [`FEATURES_REGISTRY.md`](file:///e:/Loyihalarim/GitHu
 15. 🛠️ **CI/CD Tuzatish (KidsPreferencesManager Constants):**
    - `KidsPreferencesManager.kt` da tushib qolgan `KEY_CUSTOM_ALBUMS`, `KEY_TRASH_IDS`, `KEY_FAVORITE_IDS`, va `KEY_ALBUM_ASSIGNMENTS` kalitlari `companion object` ga kiritildi (`Unresolved reference` xatosi bartaraf etildi).
 
+16. ⏱️❤️ **Bolalar Taymeri (5-30m + Qo'lda Sozlash), Reaktiv Sevimlilar & Savat Tiklash Mukammallashtirildi:**
+   - **Ekran Vaqti Taymeri (5-30m va Qo'lda Sozlash):**
+     * `ParentSettingsScreen.kt` da taymer variantlari 2 qatorga ajratildi: `5 m`, `10 m`, `15 m`, `20 m` va `25 m`, `30 m`, `∞ (Cheksiz)`.
+     * Agar foydalanuvchi nostandart vaqt o'rnatgan bo'lsa, avtomatik ravishda `⭐ X m` faol chipi paydo bo'ladi.
+     * `[✏️ Vaqtni Qo'lda Sozlash...]` tugmasi qo'shildi: bosilganda chiroyli `AlertDialog` ochilib, unda raqamli klaviatura (`KeyboardType.Number`) orqali istalgan daqiqa kiritish va saqlash mumkin.
+   - **Sevimlilar To'liq Ko'rish va Boshqarish:**
+     * Pro rejim Top Barida Savat yoniga alohida `❤️ ${favoriteItems.size}` yorqin yoqut-pushti tabletkasi o'rnatildi (bosilganda to'g'ridan-to'g'ri Sevimlilar filtrini ochadi).
+     * Albomlar filtri ro'yxatiga `"❤️ SEVIMLILAR"` birinchi darajali toifa sifatida qo'shildi.
+     * Agar Sevimlilar filtri tanlangan bo'lsa va unda fotosurat bo'lmasa, Bento uslubida maxsus yoqimli bo'sh holat ekrani chiqadi.
+   - **Savat va Sevimlilar Reaktivligi (Instant State Reactivity):**
+     * Jetpack Compose da `SnapshotStateList` ob'ekt havolasi o'zgarmasligi sababli `remember(mediaList, trash)` sekin yoki yangilanmaslik muammosi aniqlanib, `trashSnapshot = trash.toList()` va `favoritesSnapshot = favorites.toList()` orqali Compose holat kuzatuvi 100% reaktiv holga keltirildi.
+     * `onTrash`, `onToggleFavorite` va `onUndo` amallari bajarilishi bilan holatlar `kidsPrefs` ga zudlik bilan yoziladi va ekranda tezkor Toast xabari aks etadi.
+   - **Savatdan Chiqarish (Quick Restore) Sayqallandi:**
+     * `TrashManagementSheet` da har bir miniatyura pastiga `[Tiklash ↶]` tezkor banneri o'rnatildi. Foydalanuvchi bitta tegish bilan fotosuratni savatdan chiqarishi mumkin va savat hisoblagichi darhol kamayadi.
+   - **Surish Shtamplarining Bir-biriga Qorishib Ketishi (Anti-Overlap) Tuzatildi:**
+     * Foydalanuvchi skrinshotida ko'ringan diagonali surish paytida ham Savat, ham Keyingisi yoki Sevimli shtamplari bir vaqtda chiqib qolish xatosi o'q dominantligi (`isVerticalDominant = absY > absX * 0.75f`) orqali hal qilindi. Endi istalgan paytda aniq va qat'iy 1 ta shtamp aks etadi.
+   - **Web Demo Sinxronizatsiyasi:**
+     * `#btn-open-favs` tugmasi, `#favs-header-count` hisoblagichi, 5-30m taymer chiplari va `#btn-custom-timer-web` qo'lda vaqt kiritish muloqot oynasi ulandi.
+     * Savat miniatyuralariga `[Tiklash ↶]` qatlami va `restoreSingleTrash(id)` funksiyasi qo'shildi.
+
 ---
 
 ## 3. GitHub Actions CI/CD va Reliz Tizimi:
 1. 🛠️ **Host SDK Yo'li:** `local.properties` tozalandi, CI `$ANDROID_HOME` bilan xatosiz yig'iladi.
 2. 📦 **Artifacts & Release:** `upload-artifact@v4` va `action-gh-release@v2` orqali universal va split APK'lar nashr etiladi.
 3. 🔐 **Imzolash:** `photocheck.jks` v1 va v2 imzo bilan barcha relizlarni bir xil kalitda himoyalaydi.
+

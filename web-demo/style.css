@@ -506,6 +506,44 @@ body {
     color: #ffffff;
 }
 
+#btn-open-favs,
+.btn-favs-header {
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 16px;
+    background: rgba(30, 41, 59, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #cbd5e1;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+
+#btn-open-favs.active {
+    background: rgba(190, 24, 93, 0.9);
+    border-color: #f472b6;
+    color: #ffffff;
+}
+
+#btn-open-favs i {
+    color: #fb7185;
+    filter: drop-shadow(0 0 6px rgba(251, 113, 133, 0.6));
+    font-size: 12px;
+}
+
+#favs-header-count {
+    background: rgba(251, 113, 133, 0.22);
+    color: #fecdd3;
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 800;
+}
+
 #btn-open-trash,
 .btn-trash-header {
     color: #cbd5e1;
@@ -1782,8 +1820,25 @@ input:checked + .slider:before {
 .trash-modal-card { max-height: 80vh; display: flex; flex-direction: column; }
 .trash-modal-body { flex: 1; overflow-y: auto; max-height: 260px; margin: 10px 0; }
 .trash-items-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.trash-grid-thumb { aspect-ratio: 1; border-radius: 10px; overflow: hidden; position: relative; background: #0b0d14; }
+.trash-grid-thumb { aspect-ratio: 1; border-radius: 10px; overflow: hidden; position: relative; background: #0b0d14; cursor: pointer; }
 .trash-grid-thumb img, .trash-grid-thumb video { width: 100%; height: 100%; object-fit: cover; }
+.trash-thumb-restore-overlay {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(4px);
+    color: #38bdf8;
+    font-size: 10px;
+    font-weight: 800;
+    text-align: center;
+    padding: 3px 0;
+    letter-spacing: 0.5px;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+.trash-grid-thumb:hover .trash-thumb-restore-overlay {
+    background: rgba(56, 189, 248, 0.95);
+    color: #0f172a;
+}
 .trash-empty-notice { color: var(--text-muted); font-size: 12px; padding: 20px 0; }
 
 /* Filter Modal List */

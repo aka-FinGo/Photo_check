@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,6 +64,8 @@ fun ParentSettingsScreen(
 
     var showGuideDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
+    var showCustomTimerDialog by remember { mutableStateOf(false) }
+    var customTimerInput by remember { mutableStateOf("") }
 
     val currentAppVersion = remember {
         try {
@@ -480,12 +484,16 @@ fun ParentSettingsScreen(
                             }
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            val timerOptions = listOf(15, 30, 45, 60, 0)
+                            val timerOptionsRow1 = listOf(5, 10, 15, 20)
+                            val timerOptionsRow2 = listOf(25, 30, 0)
+                            val isCustom = timerLimitMinutes !in listOf(5, 10, 15, 20, 25, 30, 0)
+
+                            // Row 1: 5, 10, 15, 20 daqiqa
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                timerOptions.forEach { minutes ->
+                                timerOptionsRow1.forEach { minutes ->
                                     val isSelected = timerLimitMinutes == minutes
                                     Surface(
                                         shape = RoundedCornerShape(14.dp),
@@ -495,7 +503,7 @@ fun ParentSettingsScreen(
                                             .clickable { onSetTimerLimit(minutes) }
                                     ) {
                                         Text(
-                                            text = if (minutes > 0) "$minutes m" else "∞",
+                                            text = "$minutes m",
                                             color = if (isSelected) Color.Black else Color.White,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 12.sp,
@@ -504,6 +512,75 @@ fun ParentSettingsScreen(
                                         )
                                     }
                                 }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Row 2: 25, 30, ∞ (Cheksiz) + Custom if active
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                timerOptionsRow2.forEach { minutes ->
+                                    val isSelected = timerLimitMinutes == minutes
+                                    Surface(
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = if (isSelected) Color(0xFF38BDF8) else Color(0xFF1E293B),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable { onSetTimerLimit(minutes) }
+                                    ) {
+                                        Text(
+                                            text = if (minutes > 0) "$minutes m" else "∞ (Cheksiz)",
+                                            color = if (isSelected) Color.Black else Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.padding(vertical = 10.dp)
+                                        )
+                                    }
+                                }
+
+                                if (isCustom) {
+                                    Surface(
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = Color(0xFF38BDF8),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable {
+                                                customTimerInput = timerLimitMinutes.toString()
+                                                showCustomTimerDialog = true
+                                            }
+                                    ) {
+                                        Text(
+                                            text = "⭐ $timerLimitMinutes m",
+                                            color = Color.Black,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.padding(vertical = 10.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Custom Manual Input Button
+                            OutlinedButton(
+                                onClick = {
+                                    customTimerInput = if (timerLimitMinutes > 0) timerLimitMinutes.toString() else ""
+                                    showCustomTimerDialog = true
+                                },
+                                shape = RoundedCornerShape(14.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.5f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(42.dp)
+                            ) {
+                                Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("✏️ Vaqtni Qo'lda Sozlash...", color = Color(0xFF38BDF8), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -687,6 +764,76 @@ fun ParentSettingsScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF38BDF8))
                 ) {
                     Text("Yopish", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    // Custom Timer Input Dialog
+    if (showCustomTimerDialog) {
+        AlertDialog(
+            onDismissRequest = { showCustomTimerDialog = false },
+            containerColor = Color(0xFF161E2E),
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.HourglassTop, contentDescription = null, tint = Color(0xFF38BDF8))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Vaqtni Qo'lda Sozlash", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                }
+            },
+            text = {
+                Column {
+                    Text(
+                        "Bolalar rejimi uchun vaqt chegarasini daqiqalarda kiriting (masalan: 40, 50, 90, 120):",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    OutlinedTextField(
+                        value = customTimerInput,
+                        onValueChange = { input ->
+                            if (input.all { it.isDigit() } && input.length <= 4) {
+                                customTimerInput = input
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        placeholder = { Text("Daqiqada kiriting (masalan: 45)", color = Color.Gray, fontSize = 13.sp) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF38BDF8),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                            focusedContainerColor = Color(0xFF1E2433),
+                            unfocusedContainerColor = Color(0xFF141A28)
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val parsed = customTimerInput.toIntOrNull()
+                        if (parsed != null && parsed >= 0) {
+                            onSetTimerLimit(parsed)
+                            showCustomTimerDialog = false
+                            Toast.makeText(context, if (parsed > 0) "$parsed daqiqa o'rnatildi! ⏳" else "Cheksiz vaqt o'rnatildi! ⏳", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Iltimos, to'g'ri son kiriting!", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF38BDF8)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Saqlash ✅", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomTimerDialog = false }) {
+                    Text("Bekor Qilish", color = Color(0xFF94A3B8))
                 }
             }
         )

@@ -161,28 +161,38 @@ fun PhotoCheckApp(
     var newAlbumNameInput by remember { mutableStateOf("") }
     var isExportingAlbums by remember { mutableStateOf(false) }
 
-    // Real device albums + custom created albums
-    val allAlbumsList = remember(mediaList, customAlbums) {
-        val deviceAlbums = mediaList.map { it.bucketName }.filter { it.isNotBlank() }.distinct()
-        val combined = (deviceAlbums + customAlbums).distinct().sorted()
-        if (combined.isEmpty()) listOf("BARCHA FAYLLAR") else listOf("BARCHA FAYLLAR") + combined
+    val trashSnapshot = trash.toList()
+    val favoritesSnapshot = favorites.toList()
+    val assignmentsSnapshot = photoAlbumAssignments.toMap()
+
+    val favoriteItems = remember(mediaList, favoritesSnapshot, trashSnapshot) {
+        mediaList.filter { it.id in favorites && it.id !in trash }
     }
 
-    val activeList = remember(mediaList, trash, selectedFilter) {
+    val trashedItems = remember(mediaList, trashSnapshot) {
+        mediaList.filter { it.id in trash }
+    }
+
+    // Real device albums + custom created albums + favorites
+    val allAlbumsList = remember(mediaList, customAlbums.toList(), favoriteItems.size) {
+        val deviceAlbums = mediaList.map { it.bucketName }.filter { it.isNotBlank() }.distinct()
+        val combined = (deviceAlbums + customAlbums).distinct().sorted()
+        listOf("BARCHA FAYLLAR", "❤️ SEVIMLILAR") + combined
+    }
+
+    val activeList = remember(mediaList, trashSnapshot, selectedFilter, assignmentsSnapshot, favoritesSnapshot) {
         mediaList.filter { item ->
             val notInTrash = item.id !in trash
-            val matchFilter = if (selectedFilter == "BARCHA FAYLLAR") {
-                true
-            } else {
-                item.bucketName.equals(selectedFilter, ignoreCase = true) ||
-                        photoAlbumAssignments[item.id].equals(selectedFilter, ignoreCase = true)
+            val matchFilter = when (selectedFilter) {
+                "BARCHA FAYLLAR" -> true
+                "❤️ SEVIMLILAR" -> item.id in favorites
+                else -> {
+                    item.bucketName.equals(selectedFilter, ignoreCase = true) ||
+                            photoAlbumAssignments[item.id].equals(selectedFilter, ignoreCase = true)
+                }
             }
             notInTrash && matchFilter
         }
-    }
-
-    val trashedItems = remember(mediaList, trash) {
-        mediaList.filter { it.id in trash }
     }
 
     val currentItem = if (activeList.isNotEmpty()) {
@@ -194,8 +204,8 @@ fun PhotoCheckApp(
         activeList[currentIndex + 1]
     } else null
 
-    val trashedTotalBytes = remember(mediaList, trash) {
-        mediaList.filter { it.id in trash }.sumOf { it.size }
+    val trashedTotalBytes = remember(trashedItems) {
+        trashedItems.sumOf { it.size }
     }
 
     fun formatBytes(bytes: Long): String {
@@ -357,11 +367,13 @@ fun PhotoCheckApp(
                                 )
                                 HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
                                 allAlbumsList.forEach { albumName ->
+                                    val isFav = albumName == "❤️ SEVIMLILAR"
+                                    val label = if (isFav) "❤️ Sevimlilar (${favoriteItems.size})" else albumName
                                     DropdownMenuItem(
                                         text = {
                                             Text(
-                                                albumName,
-                                                color = if (selectedFilter == albumName) Color(0xFF38BDF8) else Color.White,
+                                                label,
+                                                color = if (selectedFilter == albumName) (if (isFav) Color(0xFFFB7185) else Color(0xFF38BDF8)) else Color.White,
                                                 fontWeight = if (selectedFilter == albumName) FontWeight.Bold else FontWeight.Normal
                                             )
                                         },
@@ -395,6 +407,38 @@ fun PhotoCheckApp(
                                     ) {
                                         Text("Yangilash 🚀", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                     }
+                                }
+                            }
+
+                            // ❤️ Top Bar Favorites Pill
+                            Surface(
+                                onClick = {
+                                    selectedFilter = if (selectedFilter == "❤️ SEVIMLILAR") "BARCHA FAYLLAR" else "❤️ SEVIMLILAR"
+                                    showGridView = false
+                                    currentIndex = 0
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                color = if (selectedFilter == "❤️ SEVIMLILAR") Color(0xFFBE185D).copy(alpha = 0.9f) else if (favoriteItems.isNotEmpty()) Color(0xFF831843).copy(alpha = 0.65f) else Color(0xFF1E293B).copy(alpha = 0.85f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (selectedFilter == "❤️ SEVIMLILAR") Color(0xFFF472B6) else if (favoriteItems.isNotEmpty()) Color(0xFFFB7185).copy(alpha = 0.5f) else Color.White.copy(alpha = 0.12f)),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Favorite,
+                                        contentDescription = "Sevimlilar",
+                                        tint = if (selectedFilter == "❤️ SEVIMLILAR" || favoriteItems.isNotEmpty()) Color(0xFFFB7185) else Color(0xFF94A3B8),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "${favoriteItems.size}",
+                                        color = if (selectedFilter == "❤️ SEVIMLILAR" || favoriteItems.isNotEmpty()) Color.White else Color(0xFF94A3B8),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
                             }
 
@@ -517,7 +561,9 @@ fun PhotoCheckApp(
                         allAlbums = allAlbumsList.filter { it != "BARCHA FAYLLAR" },
                         onTrash = {
                             trash.add(currentItem.id)
+                            kidsPrefs.savedTrashIds = trash.toSet()
                             historyStack.add(SlideboxAction.Trashed(currentItem, currentIndex))
+                            Toast.makeText(context, "Savatga tashlandi 🗑️", Toast.LENGTH_SHORT).show()
                         },
                         onToggleFavorite = {
                             val wasFav = currentItem.id in favorites
@@ -526,18 +572,22 @@ fun PhotoCheckApp(
                             } else {
                                 favorites.add(currentItem.id)
                             }
+                            kidsPrefs.savedFavoriteIds = favorites.toSet()
                             historyStack.add(SlideboxAction.Favorited(currentItem, wasFav))
+                            Toast.makeText(context, if (wasFav) "Sevimlilardan olib tashlandi 💔" else "Sevimlilarga qo'shildi ❤️", Toast.LENGTH_SHORT).show()
                         },
                         onUndo = {
                             if (historyStack.isNotEmpty()) {
                                 when (val lastAction = historyStack.removeAt(historyStack.size - 1)) {
                                     is SlideboxAction.Trashed -> {
                                         trash.remove(lastAction.item.id)
+                                        kidsPrefs.savedTrashIds = trash.toSet()
                                         currentIndex = lastAction.previousIndex.coerceIn(0, activeList.size)
                                         Toast.makeText(context, "Savatdan qaytarildi ↶", Toast.LENGTH_SHORT).show()
                                     }
                                     is SlideboxAction.BatchTrashed -> {
                                         lastAction.items.forEach { trash.remove(it.id) }
+                                        kidsPrefs.savedTrashIds = trash.toSet()
                                         currentIndex = lastAction.previousIndex.coerceIn(0, activeList.size)
                                         Toast.makeText(context, "${lastAction.items.size} ta kadr savatdan qaytarildi ↶", Toast.LENGTH_SHORT).show()
                                     }
@@ -553,6 +603,8 @@ fun PhotoCheckApp(
                                         } else {
                                             favorites.remove(lastAction.item.id)
                                         }
+                                        kidsPrefs.savedFavoriteIds = favorites.toSet()
+                                        Toast.makeText(context, "Sevimli holati qaytarildi ↶", Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             }
@@ -599,21 +651,22 @@ fun PhotoCheckApp(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.fillMaxWidth()
                         ) {
+                            val isFavoritesFilter = selectedFilter == "❤️ SEVIMLILAR"
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFF0284C7).copy(alpha = 0.15f),
-                                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF38BDF8).copy(alpha = 0.4f)),
+                                color = if (isFavoritesFilter) Color(0xFFBE185D).copy(alpha = 0.15f) else Color(0xFF0284C7).copy(alpha = 0.15f),
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, if (isFavoritesFilter) Color(0xFFFB7185).copy(alpha = 0.5f) else Color(0xFF38BDF8).copy(alpha = 0.4f)),
                                 modifier = Modifier.size(80.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    Text("🎉", fontSize = 42.sp)
+                                    Text(if (isFavoritesFilter) "❤️" else "🎉", fontSize = 42.sp)
                                 }
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
 
                             Text(
-                                text = "Barcha rasmlar saralandi!",
+                                text = if (isFavoritesFilter) "Sevimli rasmlar hali yo'q" else "Barcha rasmlar saralandi!",
                                 color = Color.White,
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold
@@ -622,7 +675,7 @@ fun PhotoCheckApp(
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
-                                text = "Filtr: \"$selectedFilter\" bo'yicha saralash yakunlandi.",
+                                text = if (isFavoritesFilter) "Rasmlarni sevimlilarga qo'shish uchun pastga suring yoki yurakcha ❤️ tugmasini bosing." else "Filtr: \"$selectedFilter\" bo'yicha saralash yakunlandi.",
                                 color = Color(0xFF94A3B8),
                                 fontSize = 13.sp,
                                 textAlign = TextAlign.Center
@@ -771,9 +824,12 @@ fun PhotoCheckApp(
                         onDismiss = { showTrashSheet = false },
                         onRestoreItem = { item ->
                             trash.remove(item.id)
+                            kidsPrefs.savedTrashIds = trash.toSet()
+                            Toast.makeText(context, "Rasm savatdan chiqarildi! ↶", Toast.LENGTH_SHORT).show()
                         },
                         onRestoreAll = {
                             trash.clear()
+                            kidsPrefs.savedTrashIds = emptySet()
                             showTrashSheet = false
                             Toast.makeText(context, "Barcha rasmlar tiklandi! 🔄", Toast.LENGTH_SHORT).show()
                         },
@@ -1066,87 +1122,96 @@ fun SlideboxCardSorterScreen(
                         }
                 )
 
-                // DYNAMIC BADGE STAMPS
-                // 1. Trash Stamp (Swipe UP)
-                if (offsetY.value < -35f) {
-                    val alpha = (kotlin.math.abs(offsetY.value) / 130f).coerceIn(0f, 1f)
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = 28.dp)
-                            .graphicsLayer { this.alpha = alpha }
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFFDC2626).copy(alpha = 0.92f))
-                            .border(1.5.dp, Color(0xFFFCA5A5), RoundedCornerShape(20.dp))
-                            .padding(horizontal = 20.dp, vertical = 9.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("SAVATGA TASH LASH 🗑️", color = Color.White, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                // DYNAMIC BADGE STAMPS (Mutually exclusive dominant axis)
+                val absX = kotlin.math.abs(offsetX.value)
+                val absY = kotlin.math.abs(offsetY.value)
+                val isVerticalDominant = absY > (absX * 0.75f)
+
+                if (isVerticalDominant) {
+                    // 1. Trash Stamp (Swipe UP)
+                    if (offsetY.value < -35f) {
+                        val alpha = (kotlin.math.abs(offsetY.value) / 130f).coerceIn(0f, 1f)
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = 28.dp)
+                                .graphicsLayer { this.alpha = alpha }
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Color(0xFFDC2626).copy(alpha = 0.92f))
+                                .border(1.5.dp, Color(0xFFFCA5A5), RoundedCornerShape(20.dp))
+                                .padding(horizontal = 20.dp, vertical = 9.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("SAVATGA TASHLASH 🗑️", color = Color.White, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                            }
                         }
                     }
-                }
-
-                // 2. Next Stamp (Swipe LEFT)
-                if (offsetX.value < -35f) {
-                    val alpha = (kotlin.math.abs(offsetX.value) / 130f).coerceIn(0f, 1f)
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .padding(end = 20.dp)
-                            .graphicsLayer { this.alpha = alpha }
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(Color(0xFF059669).copy(alpha = 0.92f))
-                            .border(1.5.dp, Color(0xFF6EE7B7), RoundedCornerShape(18.dp))
-                            .padding(horizontal = 16.dp, vertical = 9.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("KEYINGISI", color = Color.White, fontWeight = FontWeight.Black, fontSize = 13.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Icon(Icons.Default.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    // 4. Favorite Stamp (Swipe DOWN)
+                    else if (offsetY.value > 40f) {
+                        val alpha = (offsetY.value / 130f).coerceIn(0f, 1f)
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 28.dp)
+                                .graphicsLayer { this.alpha = alpha }
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Color(0xFFDB2777).copy(alpha = 0.92f))
+                                .border(1.5.dp, Color(0xFFF472B6), RoundedCornerShape(20.dp))
+                                .padding(horizontal = 20.dp, vertical = 9.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    if (isFavorite) Icons.Default.FavoriteBorder else Icons.Default.Favorite,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(if (isFavorite) "SEVIMLILARDAN CHIQARISH 💔" else "SEVIMLI ❤️", color = Color.White, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                            }
                         }
                     }
-                }
-
-                // 3. Previous Stamp (Swipe RIGHT)
-                if (offsetX.value > 35f) {
-                    val alpha = (offsetX.value / 130f).coerceIn(0f, 1f)
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .padding(start = 20.dp)
-                            .graphicsLayer { this.alpha = alpha }
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(Color(0xFF0284C7).copy(alpha = 0.92f))
-                            .border(1.5.dp, Color(0xFF7DD3FC), RoundedCornerShape(18.dp))
-                            .padding(horizontal = 16.dp, vertical = 9.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("OLDINGI", color = Color.White, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                } else {
+                    // 2. Next Stamp (Swipe LEFT)
+                    if (offsetX.value < -35f) {
+                        val alpha = (kotlin.math.abs(offsetX.value) / 130f).coerceIn(0f, 1f)
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 20.dp)
+                                .graphicsLayer { this.alpha = alpha }
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color(0xFF059669).copy(alpha = 0.92f))
+                                .border(1.5.dp, Color(0xFF6EE7B7), RoundedCornerShape(18.dp))
+                                .padding(horizontal = 16.dp, vertical = 9.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("KEYINGISI", color = Color.White, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(Icons.Default.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
-                }
-
-                // 4. Favorite Stamp (Swipe DOWN)
-                if (offsetY.value > 40f) {
-                    val alpha = (offsetY.value / 130f).coerceIn(0f, 1f)
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 28.dp)
-                            .graphicsLayer { this.alpha = alpha }
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFFDB2777).copy(alpha = 0.92f))
-                            .border(1.5.dp, Color(0xFFF472B6), RoundedCornerShape(20.dp))
-                            .padding(horizontal = 20.dp, vertical = 9.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Favorite, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(if (isFavorite) "SEVIMLILARDAN CHIQARISH" else "SEVIMLI ❤️", color = Color.White, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                    // 3. Previous Stamp (Swipe RIGHT)
+                    else if (offsetX.value > 35f) {
+                        val alpha = (offsetX.value / 130f).coerceIn(0f, 1f)
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(start = 20.dp)
+                                .graphicsLayer { this.alpha = alpha }
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color(0xFF0284C7).copy(alpha = 0.92f))
+                                .border(1.5.dp, Color(0xFF7DD3FC), RoundedCornerShape(18.dp))
+                                .padding(horizontal = 16.dp, vertical = 9.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("OLDINGI", color = Color.White, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                            }
                         }
                     }
                 }
@@ -1604,16 +1669,20 @@ fun TrashManagementSheet(
                                 modifier = Modifier.fillMaxSize()
                             )
 
-                            // Quick Restore badge
+                            // Quick Restore banner
                             Box(
                                 modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(4.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Black.copy(alpha = 0.7f))
-                                    .padding(4.dp)
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .background(Color.Black.copy(alpha = 0.78f))
+                                    .padding(vertical = 4.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.Refresh, contentDescription = "Tiklash", tint = Color(0xFF38BDF8), modifier = Modifier.size(12.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Tiklash", tint = Color(0xFF38BDF8), modifier = Modifier.size(11.dp))
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text("Tiklash ↶", color = Color(0xFF38BDF8), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }

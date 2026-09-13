@@ -97,6 +97,8 @@ class PhotoCheckApp {
         this.renderAlbumChecklist();
         this.renderSlideboxTray();
         this.renderCardStack();
+        this.updateTrashCounter();
+        this.updateFavsCounter();
         this.updateTime();
         setInterval(() => this.updateTime(), 30000);
     }
@@ -275,6 +277,26 @@ class PhotoCheckApp {
         // Timer chips
         document.querySelectorAll('.timer-chip').forEach(chip => {
             chip.addEventListener('click', () => {
+                if (chip.id === 'btn-custom-timer-web') {
+                    const customInput = prompt('Iltimos, taymer vaqtini daqiqada kiriting (1-300):', state.timerMinutes > 0 ? state.timerMinutes : '15');
+                    if (customInput === null) return;
+                    const mins = parseInt(customInput.trim(), 10);
+                    if (isNaN(mins) || mins <= 0) {
+                        this.showToast('Noto\'g\'ri vaqt kiritildi!');
+                        return;
+                    }
+                    document.querySelectorAll('.timer-chip').forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
+                    chip.textContent = `⭐ ${mins} m`;
+                    state.timerMinutes = mins;
+                    state.remainingSeconds = mins * 60;
+                    state.isTimerLocked = false;
+                    this.updateTimerDisplay();
+                    this.updateBentoStats();
+                    this.showToast(`Taymer ${mins} daqiqaga o'rnatildi ⏱️`);
+                    return;
+                }
+
                 document.querySelectorAll('.timer-chip').forEach(c => c.classList.remove('active'));
                 chip.classList.add('active');
                 const mins = parseInt(chip.dataset.min, 10);
@@ -282,6 +304,7 @@ class PhotoCheckApp {
                 state.remainingSeconds = mins * 60;
                 state.isTimerLocked = false;
                 this.updateTimerDisplay();
+                this.updateBentoStats();
                 this.showToast(`Taymer ${mins > 0 ? mins + ' daqiqaga' : 'cheksiz'} o'rnatildi`);
             });
         });
@@ -379,6 +402,20 @@ class PhotoCheckApp {
         document.getElementById('btn-slide-undo')?.addEventListener('click', () => this.performUndo());
         document.getElementById('btn-slide-trash')?.addEventListener('click', () => this.trashCurrentCard());
         document.getElementById('btn-slide-fav')?.addEventListener('click', () => this.toggleCurrentFavorite());
+
+        // Top Bar Favorites button
+        document.getElementById('btn-open-favs')?.addEventListener('click', () => {
+            if (state.selectedProAlbumFilter === '❤️ SEVIMLILAR') {
+                state.selectedProAlbumFilter = 'BARCHA FAYLLAR';
+            } else {
+                state.selectedProAlbumFilter = '❤️ SEVIMLILAR';
+            }
+            const txt = document.getElementById('current-album-filter-text');
+            if (txt) txt.textContent = state.selectedProAlbumFilter;
+            state.currentIndex = 0;
+            this.renderCardStack();
+            this.showToast(state.selectedProAlbumFilter === '❤️ SEVIMLILAR' ? 'Sevimlilar ochildi ❤️' : 'Barcha fayllar ochildi 📁');
+        });
 
         // Top Bar Trash button
         document.getElementById('btn-open-trash')?.addEventListener('click', () => this.openTrashModal());
@@ -864,8 +901,10 @@ class PhotoCheckApp {
     getProActiveMedia() {
         return state.media.filter(item => {
             const notInTrash = !state.trash.includes(item.id);
-            const matchesFilter = state.selectedProAlbumFilter === 'BARCHA FAYLLAR' || item.folder.toLowerCase() === state.selectedProAlbumFilter.toLowerCase();
-            return notInTrash && matchesFilter;
+            if (!notInTrash) return false;
+            if (state.selectedProAlbumFilter === 'BARCHA FAYLLAR') return true;
+            if (state.selectedProAlbumFilter === '❤️ SEVIMLILAR') return item.isFavorite;
+            return item.folder.toLowerCase() === state.selectedProAlbumFilter.toLowerCase();
         });
     }
 
@@ -1075,6 +1114,8 @@ class PhotoCheckApp {
         if (!state.trash.includes(item.id)) {
             state.trash.push(item.id);
             state.undoStack.push({ type: 'trash', itemId: item.id });
+            this.updateTrashCounter();
+            this.updateFavsCounter();
             this.showToast('Savatga tashlandi 🗑️');
             this.renderCardStack();
         }
@@ -1104,6 +1145,10 @@ class PhotoCheckApp {
         if (!item) return;
         item.isFavorite = !item.isFavorite;
         this.updateFavButtonState(item);
+        this.updateFavsCounter();
+        if (state.selectedProAlbumFilter === '❤️ SEVIMLILAR') {
+            this.renderCardStack();
+        }
         this.showToast(item.isFavorite ? 'Sevimlilarga qo\'shildi ❤️' : 'Sevimlilardan olib tashlandi');
     }
 
@@ -1130,6 +1175,8 @@ class PhotoCheckApp {
         const lastAction = state.undoStack.pop();
         if (lastAction.type === 'trash') {
             state.trash = state.trash.filter(id => id !== lastAction.itemId);
+            this.updateTrashCounter();
+            this.updateFavsCounter();
             this.showToast('Savatdan qaytarildi ↶');
             this.renderCardStack();
         } else if (lastAction.type === 'album') {
@@ -1200,8 +1247,15 @@ class PhotoCheckApp {
         document.querySelectorAll('.trash-count').forEach(el => el.textContent = count);
     }
 
+    updateFavsCounter() {
+        const count = state.media.filter(m => m.isFavorite && !state.trash.includes(m.id)).length;
+        const headerFavs = document.getElementById('favs-header-count');
+        if (headerFavs) headerFavs.textContent = count;
+    }
+
     openTrashModal() {
         this.updateTrashCounter();
+        this.updateFavsCounter();
         const modal = document.getElementById('trash-modal');
         const grid = document.getElementById('trash-items-grid');
         const emptyNotice = document.getElementById('trash-empty-notice');
@@ -1217,14 +1271,32 @@ class PhotoCheckApp {
             trashedItems.forEach(item => {
                 const thumb = document.createElement('div');
                 thumb.className = 'trash-grid-thumb';
-                thumb.innerHTML = item.type === 'video'
+                thumb.title = 'Savatdan qaytarish uchun bosing';
+                thumb.innerHTML = (item.type === 'video'
                     ? `<video src="${item.url}"></video>`
-                    : `<img src="${item.url}">`;
+                    : `<img src="${item.url}">`) +
+                    `<div class="trash-thumb-restore-overlay"><span>Tiklash ↶</span></div>`;
+                thumb.addEventListener('click', () => {
+                    this.restoreSingleTrash(item.id);
+                });
                 grid.appendChild(thumb);
             });
         }
 
         modal.classList.add('active');
+    }
+
+    restoreSingleTrash(id) {
+        const idx = state.trash.indexOf(id);
+        if (idx !== -1) {
+            state.trash.splice(idx, 1);
+            this.updateTrashCounter();
+            this.updateFavsCounter();
+            this.showToast('Fayl savatdan qaytarildi! ↶');
+            this.openTrashModal();
+            this.renderCardStack();
+            this.renderKidsGallery();
+        }
     }
 
     closeTrashModal() {
@@ -1235,6 +1307,8 @@ class PhotoCheckApp {
         if (state.trash.length === 0) return;
         state.media = state.media.filter(m => !state.trash.includes(m.id));
         state.trash = [];
+        this.updateTrashCounter();
+        this.updateFavsCounter();
         this.showToast('Savat to\'liq tozalandi! 🗑️');
         this.closeTrashModal();
         this.renderCardStack();
@@ -1244,9 +1318,12 @@ class PhotoCheckApp {
     restoreAllTrash() {
         if (state.trash.length === 0) return;
         state.trash = [];
+        this.updateTrashCounter();
+        this.updateFavsCounter();
         this.showToast('Barcha fayllar savatdan qaytarildi! ↶');
         this.closeTrashModal();
         this.renderCardStack();
+        this.renderKidsGallery();
     }
 
     // Pro Album Filter Dropdown Modal
@@ -1256,13 +1333,13 @@ class PhotoCheckApp {
         if (!modal || !list) return;
 
         list.innerHTML = '';
-        const allOptions = ['BARCHA FAYLLAR', ...new Set(state.media.map(m => m.folder)), ...state.userAlbums];
+        const allOptions = ['BARCHA FAYLLAR', '❤️ SEVIMLILAR', ...new Set(state.media.map(m => m.folder)), ...state.userAlbums];
         const unique = Array.from(new Set(allOptions));
 
         unique.forEach(opt => {
             const item = document.createElement('div');
             item.className = `album-filter-item ${state.selectedProAlbumFilter === opt ? 'active' : ''}`;
-            item.textContent = opt === 'BARCHA FAYLLAR' ? '📁 BARCHA FAYLLAR' : `📁 ${opt}`;
+            item.textContent = opt === 'BARCHA FAYLLAR' ? '📁 BARCHA FAYLLAR' : (opt === '❤️ SEVIMLILAR' ? '❤️ SEVIMLILAR' : `📁 ${opt}`);
             item.addEventListener('click', () => {
                 state.selectedProAlbumFilter = opt;
                 const txt = document.getElementById('current-album-filter-text');
