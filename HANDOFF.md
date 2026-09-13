@@ -79,11 +79,20 @@ Qo'shimcha rasmiy ro'yxat: [`FEATURES_REGISTRY.md`](file:///e:/Loyihalarim/GitHu
    - **Qo'shimcha Navigatsiya Tugmalari:** To'liq ekrandagi tomoshabin chap va o'ng tomonlariga zamonaviy suzuvchi `[<]` va `[>]` shisha piktogrammalari o'rnatildi (bitta bosish bilan ham o'tish mumkin).
    - **Web Demo Sinxronizatsiyasi:** `web-demo/` tomoshabiniga ham suzuvchi `#btn-kid-prev` va `#btn-kid-next` tugmalari, hamda sichqoncha va sensor uchun to'liq sinxron swipe boshqaruvi ulandi.
 
+14. 🎴 **Slidebox Rejimi 1:1 Mukammal Standartga Yetkazildi (Complete 1:1 Slidebox Experience):**
+   - **Haqiqiy 2 Qavatli 3D Karta Maydonchasi (Physical Card Deck & Tilt):** Oldingi karta ostida keyingi fotosurat 0.93x masshtabda ko'rinib turadi (`peekScale`); ustki karta surilganda pastki karta 1.0x gacha tabiiy kattalashadi. Surish burchagi (`rotationZ`) drag harakatiga mos -16° dan +16° gacha qiyalanadi (physics-based drag tilt).
+   - **Jonli Vizual Shtamplar (Dynamic Gesture Stamps):** Tepaga surilganda `SAVATGA TASHLASH 🗑️`, o'ngga surilganda `KEYINGISI 👉`, chapga surilganda `OLDINGI 👈`, pastga surilganda `SEVIMLI ❤️` yorqin neon shtamplari dinamik ravshanlik bilan chiqadi.
+   - **Taktil Haptika (Sensory Feedback):** Har bir surish va harakat chegarasida tebranish (`LocalHapticFeedback` / `HapticFeedbackType.LongPress`).
+   - **Karta Ichida 2x Zoom:** Kartaning o'zida ikki marta bosganda 2.2x kattalashadi va fotosurat detallarini tekshirish imkonini beradi.
+   - **Ketma-ket Kadrlarni Solishtirish (Burst Compare Mode):** 45 soniya oralig'ida olingan o'xshash rasmlar aniqlanganda karta tepasida miniatyura lentasi (`📸 N ta kadr`) va bitta bosish bilan qolgan ortiqcha kadrlarni savatga tashlash tugmasi (`⚡ Boshqalarini savatga`) chiqadi.
+   - **Albomlarni Disk Xotirasiga Eksport Qilish (Scoped Storage Export):** Foydalanuvchi saralagan albomlar `KidsPreferencesManager` da doimiy saqlanadi. Saralash tugagach "📁 Albomlarni Qurilma Xotirasiga Saqlash" tugmasi orqali haqiqiy Android MediaStore `Pictures/<Albom>` va `Movies/<Albom>` jildlariga nusxalanadi.
+   - **Savat Xotira Hajmi Hisob-kitobi (Real-time MB/GB Stats):** Tepa paneldagi savat tabletkasida va yakuniy Bento ekranida o'chirilishi kutilayotgan fayllarning umumiy hajmi (`14 (52.4 MB)`) real-vaqtda hisoblanadi.
+   - **Bento Yakunlash Ekrani (Completion Summary):** Barcha fotosuratlar saralanganda chiroyli g'alaba nishoni, statistika (ko'rilgan, savatdagi hajm, albomlardagi soni), tizim savatchasini tozalash va eksport tugmalari chiqadi.
+   - **Web Demo To'liq Mosligi & Klaviatura Boshqaruvi:** Desktop va vebda `ArrowUp` (savat), `ArrowRight` (keyingi), `ArrowLeft` (oldingi), `ArrowDown` (sevimli), `Ctrl+Z` (bekor qilish) klaviatura tugmalari to'liq ulandi.
+
 ---
 
 ## 3. GitHub Actions CI/CD va Reliz Tizimi:
 1. 🛠️ **Host SDK Yo'li:** `local.properties` tozalandi, CI `$ANDROID_HOME` bilan xatosiz yig'iladi.
 2. 📦 **Artifacts & Release:** `upload-artifact@v4` va `action-gh-release@v2` orqali universal va split APK'lar nashr etiladi.
 3. 🔐 **Imzolash:** `photocheck.jks` v1 va v2 imzo bilan barcha relizlarni bir xil kalitda himoyalaydi.
-
-

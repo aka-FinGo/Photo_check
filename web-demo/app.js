@@ -319,21 +319,42 @@ class PhotoCheckApp {
         // Keyboard navigation (Escape to close, Arrow keys to navigate)
         document.addEventListener('keydown', (e) => {
             const modal = document.getElementById('kids-viewer-modal');
-            if (!modal || !modal.classList.contains('active')) return;
-
-            if (e.key === 'Escape') {
-                this.closeKidsFullscreen();
-            } else if (e.key === 'ArrowRight') {
-                const list = this.getFilteredKidsMedia();
-                if (state.viewingKidIndex < list.length - 1) {
-                    state.viewingKidIndex++;
-                    this.showKidsFullscreen(list[state.viewingKidIndex]);
+            if (modal && modal.classList.contains('active')) {
+                if (e.key === 'Escape') {
+                    this.closeKidsFullscreen();
+                } else if (e.key === 'ArrowRight') {
+                    const list = this.getFilteredKidsMedia();
+                    if (state.viewingKidIndex < list.length - 1) {
+                        state.viewingKidIndex++;
+                        this.showKidsFullscreen(list[state.viewingKidIndex]);
+                    }
+                } else if (e.key === 'ArrowLeft') {
+                    const list = this.getFilteredKidsMedia();
+                    if (state.viewingKidIndex > 0) {
+                        state.viewingKidIndex--;
+                        this.showKidsFullscreen(list[state.viewingKidIndex]);
+                    }
                 }
-            } else if (e.key === 'ArrowLeft') {
-                const list = this.getFilteredKidsMedia();
-                if (state.viewingKidIndex > 0) {
-                    state.viewingKidIndex--;
-                    this.showKidsFullscreen(list[state.viewingKidIndex]);
+                return;
+            }
+
+            // Keyboard navigation for Slidebox Sorter Mode
+            if (state.activeScreen === 'sorter') {
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    this.trashCurrentCard();
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    this.nextCard();
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    this.prevCard();
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    this.toggleCurrentFavorite();
+                } else if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+                    e.preventDefault();
+                    this.performUndo();
                 }
             }
         });
@@ -865,16 +886,62 @@ class PhotoCheckApp {
 
         if (!currentItem) {
             stack.innerHTML = '';
-            if (emptyState) emptyState.classList.add('active');
+            if (emptyState) {
+                emptyState.classList.add('active');
+                emptyState.innerHTML = `
+                    <div class="empty-icon-wrap" style="width: 70px; height: 70px; border-radius: 50%; background: rgba(56, 189, 248, 0.15); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; border: 1px solid rgba(56, 189, 248, 0.3);">
+                        <span style="font-size: 32px;">🎉</span>
+                    </div>
+                    <h2 style="color: #fff; font-size: 20px; font-weight: 700; margin-bottom: 6px;">Barcha fayllar saralandi!</h2>
+                    <p style="color: #94a3b8; font-size: 13px; margin-bottom: 20px;">Filtr: "${state.selectedProAlbumFilter}" bo'yicha saralash yakunlandi.</p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; width: 100%;">
+                        <div style="background: rgba(19, 24, 38, 0.9); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px; text-align: center;">
+                            <div style="color: #94a3b8; font-size: 11px;">👀 Ko'rildi</div>
+                            <div style="color: #fff; font-size: 18px; font-weight: 700; margin-top: 4px;">${state.media.length - state.trash.length} ta</div>
+                        </div>
+                        <div style="background: rgba(19, 24, 38, 0.9); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 14px; padding: 12px; text-align: center;">
+                            <div style="color: #fca5a5; font-size: 11px;">🗑️ Savatda</div>
+                            <div style="color: #ef4444; font-size: 18px; font-weight: 700; margin-top: 4px;">${state.trash.length} ta</div>
+                        </div>
+                    </div>
+
+                    <div class="empty-actions" style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                        <button class="btn btn-primary" onclick="app.openTrashModal()" style="width: 100%; justify-content: center; height: 46px; border-radius: 14px; background: #ef4444;">
+                            <i class="fas fa-trash-alt"></i> Savatni Tozalash (${state.trash.length})
+                        </button>
+                        <button class="btn btn-outline" onclick="app.resetDemo()" style="width: 100%; justify-content: center; height: 46px; border-radius: 14px; border: 1px solid #38bdf8; color: #38bdf8;">
+                            <i class="fas fa-rotate-right"></i> Qayta Saralash
+                        </button>
+                    </div>
+                `;
+            }
             return;
         }
 
         if (emptyState) emptyState.classList.remove('active');
         stack.innerHTML = '';
 
+        const list = this.getProActiveMedia();
+        const nextItem = (state.currentIndex < list.length - 1) ? list[state.currentIndex + 1] : null;
+
+        // 1. Next card peek (Underlying 3D stack layer)
+        if (nextItem) {
+            const nextCard = document.createElement('div');
+            nextCard.className = 'card-item card-item-next';
+            nextCard.id = 'next-swipe-card';
+            nextCard.style.cssText = 'position: absolute; width: 100%; height: 100%; transform: scale(0.93) translateY(14px); opacity: 0.6; z-index: 1; pointer-events: none; border-radius: 24px; overflow: hidden; background: #141724;';
+            nextCard.innerHTML = nextItem.type === 'video'
+                ? `<video src="${nextItem.url}" muted style="width: 100%; height: 100%; object-fit: cover;"></video>`
+                : `<img src="${nextItem.url}" alt="${nextItem.title}" style="width: 100%; height: 100%; object-fit: cover;">`;
+            stack.appendChild(nextCard);
+        }
+
+        // 2. Active foreground card
         const card = document.createElement('div');
-        card.className = 'card-item';
+        card.className = 'card-item card-item-active';
         card.id = 'current-swipe-card';
+        card.style.cssText = 'position: absolute; width: 100%; height: 100%; z-index: 2; border-radius: 24px; overflow: hidden; background: #000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); cursor: grab;';
         card.innerHTML = currentItem.type === 'video'
             ? `<video src="${currentItem.url}" controls autoplay muted style="width: 100%; height: 100%; object-fit: cover;"></video>`
             : `<img src="${currentItem.url}" alt="${currentItem.title}" style="width: 100%; height: 100%; object-fit: cover;">`;
@@ -893,6 +960,7 @@ class PhotoCheckApp {
         const overlayUp = document.querySelector('.swipe-up-overlay');
         const overlayLeft = document.querySelector('.swipe-left-overlay');
         const overlayRight = document.querySelector('.swipe-right-overlay');
+        const nextCard = document.getElementById('next-swipe-card');
 
         const onTouchStart = (e) => {
             isDragging = true;
@@ -910,8 +978,17 @@ class PhotoCheckApp {
             currentX = touch.clientX - startX;
             currentY = touch.clientY - startY;
 
-            const rotate = currentX * 0.05;
-            card.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotate}deg)`;
+            const rotate = currentX * 0.04;
+            const scaleDown = Math.max(0.7, 1 - Math.abs(currentY) / 1200);
+            card.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotate}deg) scale(${scaleDown})`;
+
+            // Dynamic peek on the next card underneath
+            if (nextCard) {
+                const dragDist = Math.sqrt(currentX * currentX + currentY * currentY);
+                const progress = Math.min(1, dragDist / 250);
+                nextCard.style.transform = `scale(${0.93 + 0.07 * progress}) translateY(${14 * (1 - progress)}px)`;
+                nextCard.style.opacity = `${0.6 + 0.4 * progress}`;
+            }
 
             // Swipe Up to Trash visual feedback
             if (currentY < -30 && overlayUp) {

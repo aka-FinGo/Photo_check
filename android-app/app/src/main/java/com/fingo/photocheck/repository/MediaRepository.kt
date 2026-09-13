@@ -119,4 +119,39 @@ class MediaRepository(private val context: Context) {
         // Sort combined list by date added (newest first)
         return@withContext mediaList.sortedByDescending { it.dateAdded }
     }
+
+    suspend fun copyMediaToAlbum(item: MediaItem, albumName: String): android.net.Uri? = withContext(Dispatchers.IO) {
+        try {
+            val values = android.content.ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, item.displayName)
+                put(MediaStore.MediaColumns.MIME_TYPE, if (item.mediaType == MediaType.VIDEO) "video/mp4" else "image/jpeg")
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    val base = if (item.mediaType == MediaType.VIDEO) "Movies" else "Pictures"
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "$base/$albumName")
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+            }
+            val targetUri = if (item.mediaType == MediaType.VIDEO) {
+                context.contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+            } else {
+                context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            } ?: return@withContext null
+
+            context.contentResolver.openInputStream(item.uri)?.use { input ->
+                context.contentResolver.openOutputStream(targetUri)?.use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                values.clear()
+                values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                context.contentResolver.update(targetUri, values, null, null)
+            }
+            targetUri
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 }

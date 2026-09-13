@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -22,12 +23,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -36,6 +41,7 @@ import coil.compose.AsyncImage
 import com.fingo.photocheck.data.KidsPreferencesManager
 import com.fingo.photocheck.model.MediaItem
 import com.fingo.photocheck.model.MediaType
+import com.fingo.photocheck.repository.MediaRepository
 import com.fingo.photocheck.ui.kids.KidsSafeGalleryScreen
 import com.fingo.photocheck.ui.parent.ParentSettingsScreen
 import com.fingo.photocheck.update.UpdateDialog
@@ -48,6 +54,7 @@ import java.util.Locale
 // Undo Action Model for 1:1 Slidebox experience
 sealed interface SlideboxAction {
     data class Trashed(val item: MediaItem, val previousIndex: Int) : SlideboxAction
+    data class BatchTrashed(val items: List<MediaItem>, val previousIndex: Int) : SlideboxAction
     data class AlbumSorted(val item: MediaItem, val albumName: String, val previousIndex: Int) : SlideboxAction
     data class Favorited(val item: MediaItem, val previousState: Boolean) : SlideboxAction
 }
@@ -65,6 +72,7 @@ fun PhotoCheckApp(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val kidsPrefs = remember { KidsPreferencesManager(context) }
+    val repository = remember { MediaRepository(context) }
 
     var isKidsMode by remember { mutableStateOf(kidsPrefs.isKidsMode) }
     var whitelistedAlbums by remember { mutableStateOf(kidsPrefs.whitelistedAlbums) }
@@ -98,26 +106,51 @@ fun PhotoCheckApp(
     }
 
     // Live timer countdown for Kids Mode
-    LaunchedEffect(isKidsMode, isClassicModeActive, timerLimitMinutes) {
-        if (isKidsMode && !isClassicModeActive && timerLimitMinutes > 0) {
-            remainingSeconds = timerLimitMinutes * 60L
-            isTimerExpired = false
-            while (remainingSeconds > 0) {
-                delay(1000L)
-                remainingSeconds--
+    LaunchedEffect(remainingSeconds, isKidsMode, isClassicModeActive) {
+        if (isKidsMode && !isClassicModeActive && remainingSeconds > 0) {
+            delay(1000L)
+            remainingSeconds--
+            if (remainingSeconds <= 0L) {
+                isTimerExpired = true
             }
-            isTimerExpired = true
         } else {
             isTimerExpired = false
         }
     }
 
-    // --- 1:1 SLIDEBOX STATE ---
-    val favorites = remember { mutableStateListOf<Long>() }
-    val trash = remember { mutableStateListOf<Long>() }
-    val customAlbums = remember { mutableStateListOf<String>() }
-    val photoAlbumAssignments = remember { mutableStateMapOf<Long, String>() }
+    // --- 1:1 SLIDEBOX STATE WITH LOCAL PERSISTENCE ---
+    val favorites = remember {
+        mutableStateListOf<Long>().apply {
+            addAll(kidsPrefs.savedFavoriteIds)
+        }
+    }
+    val trash = remember {
+        mutableStateListOf<Long>().apply {
+            addAll(kidsPrefs.savedTrashIds)
+        }
+    }
+    val customAlbums = remember {
+        mutableStateListOf<String>().apply {
+            addAll(kidsPrefs.customAlbums)
+        }
+    }
+    val photoAlbumAssignments = remember {
+        mutableStateMapOf<Long, String>().apply {
+            putAll(kidsPrefs.getAlbumAssignments())
+        }
+    }
     val historyStack = remember { mutableStateListOf<SlideboxAction>() }
+
+    // Sync state changes with persistence
+    LaunchedEffect(trash.toList()) {
+        kidsPrefs.savedTrashIds = trash.toSet()
+    }
+    LaunchedEffect(favorites.toList()) {
+        kidsPrefs.savedFavoriteIds = favorites.toSet()
+    }
+    LaunchedEffect(customAlbums.toList()) {
+        kidsPrefs.customAlbums = customAlbums.toSet()
+    }
 
     var currentIndex by remember { mutableIntStateOf(0) }
     var selectedFilter by remember { mutableStateOf("BARCHA FAYLLAR") }
@@ -126,6 +159,7 @@ fun PhotoCheckApp(
     var showGridView by remember { mutableStateOf(false) }
     var showNewAlbumDialog by remember { mutableStateOf(false) }
     var newAlbumNameInput by remember { mutableStateOf("") }
+    var isExportingAlbums by remember { mutableStateOf(false) }
 
     // Real device albums + custom created albums
     val allAlbumsList = remember(mediaList, customAlbums) {
@@ -155,6 +189,29 @@ fun PhotoCheckApp(
         val safeIndex = currentIndex.coerceIn(0, activeList.size - 1)
         activeList[safeIndex]
     } else null
+
+    val nextItem = if (activeList.isNotEmpty() && currentIndex < activeList.size - 1) {
+        activeList[currentIndex + 1]
+    } else null
+
+    val trashedTotalBytes = remember(mediaList, trash) {
+        mediaList.filter { it.id in trash }.sumOf { it.size }
+    }
+
+    fun formatBytes(bytes: Long): String {
+        val mb = bytes / (1024.0 * 1024.0)
+        return if (mb >= 1000) String.format(Locale.US, "%.2f GB", mb / 1024.0) else String.format(Locale.US, "%.1f MB", mb)
+    }
+
+    val similarPhotos = remember(currentItem, activeList) {
+        if (currentItem == null) emptyList()
+        else {
+            activeList.filter { other ->
+                other.bucketName.equals(currentItem.bucketName, ignoreCase = true) &&
+                        kotlin.math.abs(other.dateAdded - currentItem.dateAdded) <= 45L
+            }.sortedBy { it.dateAdded }
+        }
+    }
 
     // Safe index adjustment when list shrinks
     LaunchedEffect(activeList.size) {
@@ -361,7 +418,7 @@ fun PhotoCheckApp(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "${trashedItems.size}",
+                                        text = if (trashedItems.isNotEmpty()) "${trashedItems.size} (${formatBytes(trashedTotalBytes)})" else "0",
                                         color = if (trashedItems.isNotEmpty()) Color.White else Color(0xFF94A3B8),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
@@ -436,9 +493,24 @@ fun PhotoCheckApp(
                     // 1:1 SLIDEBOX SORTER
                     SlideboxCardSorterScreen(
                         item = currentItem,
+                        nextItem = nextItem,
+                        similarPhotos = similarPhotos,
+                        onSelectSimilarPhoto = { photo ->
+                            val idx = activeList.indexOf(photo)
+                            if (idx >= 0) currentIndex = idx
+                        },
+                        onKeepOnlyCurrentInSimilar = {
+                            val othersToTrash = similarPhotos.filter { it.id != currentItem.id }
+                            if (othersToTrash.isNotEmpty()) {
+                                othersToTrash.forEach { trash.add(it.id) }
+                                historyStack.add(SlideboxAction.BatchTrashed(othersToTrash, currentIndex))
+                                Toast.makeText(context, "${othersToTrash.size} ta o'xshash kadr savatga tashlandi ⚡", Toast.LENGTH_SHORT).show()
+                            }
+                        },
                         currentIndex = currentIndex,
                         totalCount = activeList.size,
                         trashedCount = trashedItems.size,
+                        trashedFormattedSize = formatBytes(trashedTotalBytes),
                         isFavorite = currentItem.id in favorites,
                         canUndo = historyStack.isNotEmpty(),
                         assignedAlbum = photoAlbumAssignments[currentItem.id],
@@ -464,8 +536,14 @@ fun PhotoCheckApp(
                                         currentIndex = lastAction.previousIndex.coerceIn(0, activeList.size)
                                         Toast.makeText(context, "Savatdan qaytarildi ↶", Toast.LENGTH_SHORT).show()
                                     }
+                                    is SlideboxAction.BatchTrashed -> {
+                                        lastAction.items.forEach { trash.remove(it.id) }
+                                        currentIndex = lastAction.previousIndex.coerceIn(0, activeList.size)
+                                        Toast.makeText(context, "${lastAction.items.size} ta kadr savatdan qaytarildi ↶", Toast.LENGTH_SHORT).show()
+                                    }
                                     is SlideboxAction.AlbumSorted -> {
                                         photoAlbumAssignments.remove(lastAction.item.id)
+                                        kidsPrefs.removeAlbumAssignment(lastAction.item.id)
                                         currentIndex = lastAction.previousIndex.coerceIn(0, activeList.size)
                                         Toast.makeText(context, "Albom saralash bekor qilindi ↶", Toast.LENGTH_SHORT).show()
                                     }
@@ -491,6 +569,7 @@ fun PhotoCheckApp(
                         },
                         onSortToAlbum = { albumName ->
                             photoAlbumAssignments[currentItem.id] = albumName
+                            kidsPrefs.saveAlbumAssignment(currentItem.id, albumName)
                             historyStack.add(SlideboxAction.AlbumSorted(currentItem, albumName, currentIndex))
                             Toast.makeText(context, "\"$albumName\" albomiga qo'shildi! 📁", Toast.LENGTH_SHORT).show()
                             if (currentIndex < activeList.size - 1) {
@@ -509,35 +588,176 @@ fun PhotoCheckApp(
                         }
                     )
                 } else {
-                    // Empty Sorter state (All files organized!)
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    // 🎉 SLIDEBOX BENTO COMPLETION SCREEN
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(24.dp)
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("🎉", fontSize = 64.sp)
-                            Spacer(modifier = Modifier.height(14.dp))
+                            Surface(
+                                shape = CircleShape,
+                                color = Color(0xFF0284C7).copy(alpha = 0.15f),
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF38BDF8).copy(alpha = 0.4f)),
+                                modifier = Modifier.size(80.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("🎉", fontSize = 42.sp)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
                             Text(
-                                "Barcha rasmlar saralandi!",
+                                text = "Barcha rasmlar saralandi!",
                                 color = Color.White,
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
                             Text(
-                                "Ushbu filtr bo'yicha boshqa yangi media fayllar qolmadi.",
-                                color = Color.Gray,
+                                text = "Filtr: \"$selectedFilter\" bo'yicha saralash yakunlandi.",
+                                color = Color(0xFF94A3B8),
                                 fontSize = 13.sp,
                                 textAlign = TextAlign.Center
                             )
-                            Spacer(modifier = Modifier.height(20.dp))
-                            if (selectedFilter != "BARCHA FAYLLAR") {
-                                Button(
-                                    onClick = { selectedFilter = "BARCHA FAYLLAR"; currentIndex = 0 },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF38BDF8)),
-                                    shape = RoundedCornerShape(14.dp)
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            // Bento Statistics Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                // Stat 1: Total Processed
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color(0xFF131826),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                                    modifier = Modifier.weight(1f)
                                 ) {
-                                    Text("Barcha Fayllarga Qaytish 📂", color = Color.Black, fontWeight = FontWeight.Bold)
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text("👀 Ko'rildi", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text("${mediaList.size - trashedItems.size}", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                // Stat 2: In Trash
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color(0xFF131826),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.3f)),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text("🗑️ Savatda", color = Color(0xFFFCA5A5), fontSize = 11.sp)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(formatBytes(trashedTotalBytes), color = Color(0xFFEF4444), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                // Stat 3: Assigned to Albums
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color(0xFF131826),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.3f)),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text("📁 Albomda", color = Color(0xFF7DD3FC), fontSize = 11.sp)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text("${photoAlbumAssignments.size}", color = Color(0xFF38BDF8), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(28.dp))
+
+                            // Action: Empty Trash if items exist
+                            if (trashedItems.isNotEmpty()) {
+                                Button(
+                                    onClick = {
+                                        onDeleteMediaItems(trashedItems)
+                                        trash.clear()
+                                        kidsPrefs.savedTrashIds = emptySet()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                                    shape = RoundedCornerShape(16.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(50.dp)
+                                ) {
+                                    Icon(Icons.Default.DeleteForever, contentDescription = null, tint = Color.White)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Savatni Tizimdan Tozalash (${formatBytes(trashedTotalBytes)})", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                }
+                                Spacer(modifier = Modifier.height(10.dp))
+                            }
+
+                            // Action: Export Sorted Albums to Real Storage
+                            if (photoAlbumAssignments.isNotEmpty()) {
+                                OutlinedButton(
+                                    onClick = {
+                                        isExportingAlbums = true
+                                        scope.launch {
+                                            var copiedCount = 0
+                                            photoAlbumAssignments.forEach { (id, albumName) ->
+                                                val media = mediaList.find { it.id == id }
+                                                if (media != null) {
+                                                    val res = repository.copyMediaToAlbum(media, albumName)
+                                                    if (res != null) copiedCount++
+                                                }
+                                            }
+                                            isExportingAlbums = false
+                                            Toast.makeText(context, "$copiedCount ta rasm qurilma albomlariga ko'chirildi! 📁", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    enabled = !isExportingAlbums,
+                                    shape = RoundedCornerShape(16.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981)),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                ) {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF10B981))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        if (isExportingAlbums) "Nusxalanmoqda..." else "📁 Albomlarni Qurilma Xotirasiga Saqlash",
+                                        color = Color(0xFF10B981),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(10.dp))
+                            }
+
+                            // Action: Reset filter
+                            if (selectedFilter != "BARCHA FAYLLAR") {
+                                OutlinedButton(
+                                    onClick = { selectedFilter = "BARCHA FAYLLAR"; currentIndex = 0 },
+                                    shape = RoundedCornerShape(16.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8)),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                ) {
+                                    Text("Barcha Fayllarga Qaytish 📂", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -645,9 +865,14 @@ fun PhotoCheckApp(
 @Composable
 fun SlideboxCardSorterScreen(
     item: MediaItem,
+    nextItem: MediaItem?,
+    similarPhotos: List<MediaItem>,
+    onSelectSimilarPhoto: (MediaItem) -> Unit,
+    onKeepOnlyCurrentInSimilar: () -> Unit,
     currentIndex: Int,
     totalCount: Int,
     trashedCount: Int,
+    trashedFormattedSize: String,
     isFavorite: Boolean,
     canUndo: Boolean,
     assignedAlbum: String?,
@@ -661,136 +886,322 @@ fun SlideboxCardSorterScreen(
     onAddNewAlbum: () -> Unit,
     onShare: () -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val offsetX = remember { Animatable(0f) }
     val offsetY = remember { Animatable(0f) }
     val scale = remember { Animatable(1f) }
 
-    val isDraggingUp = offsetY.value < -40f
+    var isZoomed by remember { mutableStateOf(false) }
+    var zoomScale by remember { mutableFloatStateOf(1f) }
+    var zoomOffset by remember { mutableStateOf(Offset.Zero) }
+
+    LaunchedEffect(item.id) {
+        offsetX.snapTo(0f)
+        offsetY.snapTo(0f)
+        scale.snapTo(1f)
+        isZoomed = false
+        zoomScale = 1f
+        zoomOffset = Offset.Zero
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(bottom = 8.dp)
+            .padding(bottom = 6.dp)
     ) {
-        // Main Interactive Card Stack
+        // Main Interactive Card Stack (2-Layer 3D Physical Deck)
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 6.dp)
+                .padding(horizontal = 14.dp, vertical = 4.dp),
+            contentAlignment = Alignment.Center
         ) {
-            // Background shadow card
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 10.dp)
-                    .padding(top = 10.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFF141722))
-            )
+            // 1. UNDERLYING NEXT CARD (PEEK DECK)
+            if (nextItem != null) {
+                val dragDist = kotlin.math.sqrt(offsetX.value * offsetX.value + offsetY.value * offsetY.value)
+                val deckProgress = (dragDist / 350f).coerceIn(0f, 1f)
+                val peekScale = 0.93f + (0.07f * deckProgress)
+                val peekOffsetY = (14.dp * (1f - deckProgress))
 
-            // Foreground Active Swipable Card
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .offset(y = peekOffsetY)
+                        .graphicsLayer {
+                            scaleX = peekScale
+                            scaleY = peekScale
+                        }
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color(0xFF141724))
+                ) {
+                    AsyncImage(
+                        model = nextItem.uri,
+                        contentDescription = "Keyingi rasm",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .alpha(0.6f + (0.4f * deckProgress))
+                    )
+                }
+            }
+
+            // 2. FOREGROUND ACTIVE SWIPABLE CARD
+            val rotationZ = (offsetX.value / 45f).coerceIn(-16f, 16f)
+            val dynamicScale = (scale.value * (1f - (kotlin.math.abs(offsetY.value) / 1600f))).coerceIn(0.2f, 1f)
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color.Black)
                     .graphicsLayer {
                         translationX = offsetX.value
                         translationY = offsetY.value
-                        scaleX = scale.value
-                        scaleY = scale.value
+                        this.rotationZ = rotationZ
+                        scaleX = dynamicScale
+                        scaleY = dynamicScale
+                    }
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color.Black)
+                    .border(
+                        width = 1.dp,
+                        color = when {
+                            offsetY.value < -40f -> Color(0xFFEF4444).copy(alpha = (kotlin.math.abs(offsetY.value) / 120f).coerceIn(0.2f, 0.9f))
+                            offsetY.value > 50f -> Color(0xFFEC4899).copy(alpha = (offsetY.value / 120f).coerceIn(0.2f, 0.9f))
+                            offsetX.value < -40f -> Color(0xFF10B981).copy(alpha = (kotlin.math.abs(offsetX.value) / 120f).coerceIn(0.2f, 0.9f))
+                            offsetX.value > 40f -> Color(0xFF38BDF8).copy(alpha = (offsetX.value / 120f).coerceIn(0.2f, 0.9f))
+                            else -> Color.White.copy(alpha = 0.1f)
+                        },
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                    .pointerInput(item.id, isZoomed) {
+                        if (isZoomed) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                zoomOffset = Offset(
+                                    x = (zoomOffset.x + dragAmount.x).coerceIn(-600f, 600f),
+                                    y = (zoomOffset.y + dragAmount.y).coerceIn(-600f, 600f)
+                                )
+                            }
+                        } else {
+                            detectDragGestures(
+                                onDragEnd = {
+                                    val dragX = offsetX.value
+                                    val dragY = offsetY.value
+                                    if (dragY < -75f && kotlin.math.abs(dragY) > kotlin.math.abs(dragX) * 0.7f) {
+                                        // 👆 SWIPE UP TO TRASH
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        scope.launch {
+                                            offsetY.animateTo(-1200f, spring(dampingRatio = 0.8f, stiffness = 500f))
+                                            scale.animateTo(0.2f)
+                                            onTrash()
+                                            offsetX.snapTo(0f)
+                                            offsetY.snapTo(0f)
+                                            scale.snapTo(1f)
+                                        }
+                                    } else if (dragX < -85f) {
+                                        // 👈 SWIPE LEFT (NEXT)
+                                        scope.launch {
+                                            offsetX.animateTo(-900f, tween(120))
+                                            onNext()
+                                            offsetX.snapTo(0f)
+                                            offsetY.snapTo(0f)
+                                        }
+                                    } else if (dragX > 85f) {
+                                        // 👉 SWIPE RIGHT (PREVIOUS)
+                                        scope.launch {
+                                            offsetX.animateTo(900f, tween(120))
+                                            onPrevious()
+                                            offsetX.snapTo(0f)
+                                            offsetY.snapTo(0f)
+                                        }
+                                    } else if (dragY > 80f && dragY > kotlin.math.abs(dragX) * 0.7f) {
+                                        // 👇 SWIPE DOWN (FAVORITE)
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        scope.launch {
+                                            onToggleFavorite()
+                                            offsetY.animateTo(0f, spring(dampingRatio = 0.7f, stiffness = 400f))
+                                        }
+                                    } else {
+                                        // Snap back to center
+                                        scope.launch {
+                                            offsetX.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = 400f))
+                                            offsetY.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = 400f))
+                                            scale.animateTo(1f, spring())
+                                        }
+                                    }
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    scope.launch {
+                                        offsetX.snapTo(offsetX.value + dragAmount.x)
+                                        offsetY.snapTo(offsetY.value + dragAmount.y)
+                                    }
+                                }
+                            )
+                        }
                     }
                     .pointerInput(item.id) {
-                        detectDragGestures(
-                            onDragEnd = {
-                                if (offsetY.value < -50f && kotlin.math.abs(offsetY.value) > kotlin.math.abs(offsetX.value) * 0.6f) {
-                                    // 👆 SWIPE UP TO TRASH
-                                    scope.launch {
-                                        offsetY.animateTo(-900f, spring())
-                                        scale.animateTo(0.2f, spring())
-                                        onTrash()
-                                        offsetX.snapTo(0f)
-                                        offsetY.snapTo(0f)
-                                        scale.snapTo(1f)
-                                    }
-                                } else if (offsetX.value > 90f) {
-                                    // 👉 SWIPE RIGHT (PREVIOUS)
-                                    scope.launch {
-                                        offsetX.animateTo(600f, tween(140))
-                                        onPrevious()
-                                        offsetX.snapTo(0f)
-                                        offsetY.snapTo(0f)
-                                    }
-                                } else if (offsetX.value < -90f) {
-                                    // 👈 SWIPE LEFT (NEXT)
-                                    scope.launch {
-                                        offsetX.animateTo(-600f, tween(140))
-                                        onNext()
-                                        offsetX.snapTo(0f)
-                                        offsetY.snapTo(0f)
-                                    }
-                                } else {
-                                    // Release back to center
-                                    scope.launch {
-                                        offsetX.animateTo(0f, spring())
-                                        offsetY.animateTo(0f, spring())
-                                        scale.animateTo(1f, spring())
-                                    }
-                                }
-                            },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                scope.launch {
-                                    offsetX.snapTo(offsetX.value + dragAmount.x)
-                                    offsetY.snapTo(offsetY.value + dragAmount.y)
-                                    if (offsetY.value < 0) {
-                                        val s = (1f - (kotlin.math.abs(offsetY.value) / 1000f)).coerceIn(0.75f, 1f)
-                                        scale.snapTo(s)
-                                    }
-                                }
+                        detectTapGestures(
+                            onDoubleTap = {
+                                isZoomed = !isZoomed
+                                zoomScale = if (isZoomed) 2.2f else 1f
+                                if (!isZoomed) zoomOffset = Offset.Zero
                             }
                         )
                     }
             ) {
-                // Media preview
+                // Media preview (Image or Video)
                 AsyncImage(
                     model = item.uri,
                     contentDescription = item.displayName,
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = zoomScale
+                            scaleY = zoomScale
+                            translationX = zoomOffset.x
+                            translationY = zoomOffset.y
+                        }
                 )
 
-                // Trash overlay badge on drag up
-                if (isDraggingUp) {
+                // DYNAMIC BADGE STAMPS
+                // 1. Trash Stamp (Swipe UP)
+                if (offsetY.value < -35f) {
+                    val alpha = (kotlin.math.abs(offsetY.value) / 130f).coerceIn(0f, 1f)
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
-                            .padding(top = 24.dp)
+                            .padding(top = 28.dp)
+                            .graphicsLayer { this.alpha = alpha }
                             .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFFEF4444).copy(alpha = 0.9f))
-                            .padding(horizontal = 18.dp, vertical = 8.dp)
+                            .background(Color(0xFFDC2626).copy(alpha = 0.92f))
+                            .border(1.5.dp, Color(0xFFFCA5A5), RoundedCornerShape(20.dp))
+                            .padding(horizontal = 20.dp, vertical = 9.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Savatga tashlash 🗑️", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Icon(Icons.Default.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("SAVATGA TASH LASH 🗑️", color = Color.White, fontWeight = FontWeight.Black, fontSize = 14.sp)
                         }
                     }
                 }
 
-                // Assigned Album Tag badge (if tagged)
+                // 2. Next Stamp (Swipe LEFT)
+                if (offsetX.value < -35f) {
+                    val alpha = (kotlin.math.abs(offsetX.value) / 130f).coerceIn(0f, 1f)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 20.dp)
+                            .graphicsLayer { this.alpha = alpha }
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color(0xFF059669).copy(alpha = 0.92f))
+                            .border(1.5.dp, Color(0xFF6EE7B7), RoundedCornerShape(18.dp))
+                            .padding(horizontal = 16.dp, vertical = 9.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("KEYINGISI", color = Color.White, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(Icons.Default.ArrowForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+
+                // 3. Previous Stamp (Swipe RIGHT)
+                if (offsetX.value > 35f) {
+                    val alpha = (offsetX.value / 130f).coerceIn(0f, 1f)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(start = 20.dp)
+                            .graphicsLayer { this.alpha = alpha }
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color(0xFF0284C7).copy(alpha = 0.92f))
+                            .border(1.5.dp, Color(0xFF7DD3FC), RoundedCornerShape(18.dp))
+                            .padding(horizontal = 16.dp, vertical = 9.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("OLDINGI", color = Color.White, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                        }
+                    }
+                }
+
+                // 4. Favorite Stamp (Swipe DOWN)
+                if (offsetY.value > 40f) {
+                    val alpha = (offsetY.value / 130f).coerceIn(0f, 1f)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 28.dp)
+                            .graphicsLayer { this.alpha = alpha }
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0xFFDB2777).copy(alpha = 0.92f))
+                            .border(1.5.dp, Color(0xFFF472B6), RoundedCornerShape(20.dp))
+                            .padding(horizontal = 20.dp, vertical = 9.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Favorite, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(if (isFavorite) "SEVIMLILARDAN CHIQARISH" else "SEVIMLI ❤️", color = Color.White, fontWeight = FontWeight.Black, fontSize = 14.sp)
+                        }
+                    }
+                }
+
+                // Top-left Info Pills: Bucket & Size
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.Black.copy(alpha = 0.7f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+                    ) {
+                        Text(
+                            text = item.bucketName,
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.Black.copy(alpha = 0.7f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+                    ) {
+                        Text(
+                            text = item.formattedSize,
+                            color = Color(0xFF38BDF8),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
+                // Assigned Album Tag badge
                 if (assignedAlbum != null) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
                             .padding(14.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFF0284C7).copy(alpha = 0.85f))
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFF0284C7).copy(alpha = 0.9f))
+                            .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(14.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Text("📁 $assignedAlbum", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("📁", fontSize = 12.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(assignedAlbum, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
 
@@ -801,7 +1212,7 @@ fun SlideboxCardSorterScreen(
                             .align(Alignment.BottomEnd)
                             .padding(14.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color.Black.copy(alpha = 0.7f))
+                            .background(Color.Black.copy(alpha = 0.75f))
                             .padding(horizontal = 10.dp, vertical = 5.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -814,11 +1225,72 @@ fun SlideboxCardSorterScreen(
             }
         }
 
+        // 📸 BURST & SIMILAR PHOTOS COMPARE BAR
+        if (similarPhotos.size >= 2) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFF131724),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.35f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("📸", fontSize = 14.sp)
+                        Text(
+                            "${similarPhotos.size} ta kadr:",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        similarPhotos.forEach { photo ->
+                            val isSelected = photo.id == item.id
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .border(
+                                        width = if (isSelected) 2.dp else 1.dp,
+                                        color = if (isSelected) Color(0xFF38BDF8) else Color.White.copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { onSelectSimilarPhoto(photo) }
+                            ) {
+                                AsyncImage(
+                                    model = photo.uri,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    }
+
+                    TextButton(
+                        onClick = onKeepOnlyCurrentInSimilar,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text("⚡ Boshqalarini savatga", color = Color(0xFFF87171), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
         // Action Toolbar (Ergonomic Cluster)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 6.dp),
+                .padding(horizontal = 14.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -904,7 +1376,17 @@ fun SlideboxCardSorterScreen(
             ) {
                 // Quick Trash Button
                 IconButton(
-                    onClick = onTrash,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        scope.launch {
+                            offsetY.animateTo(-1200f, spring(dampingRatio = 0.8f, stiffness = 500f))
+                            scale.animateTo(0.2f)
+                            onTrash()
+                            offsetX.snapTo(0f)
+                            offsetY.snapTo(0f)
+                            scale.snapTo(1f)
+                        }
+                    },
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
@@ -965,7 +1447,7 @@ fun SlideboxCardSorterScreen(
         ) {
             Column(modifier = Modifier.padding(vertical = 8.dp)) {
                 Text(
-                    text = "📁 Albomga saralash (bosing va keyingisiga o'tadi):",
+                    text = "📁 Albomga saralash (bosing va pastga sirpanib keyingisiga o'tadi):",
                     color = Color(0xFF94A3B8),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -1012,7 +1494,14 @@ fun SlideboxCardSorterScreen(
                                 containerColor = if (isAssigned) Color(0xFF0284C7) else Color(0xFF1E2330)
                             ),
                             shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.clickable { onSortToAlbum(albumName) }
+                            modifier = Modifier.clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                scope.launch {
+                                    offsetY.animateTo(900f, tween(140))
+                                    onSortToAlbum(albumName)
+                                    offsetY.snapTo(0f)
+                                }
+                            }
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
@@ -1045,7 +1534,11 @@ fun TrashManagementSheet(
     onRestoreAll: () -> Unit,
     onDeletePermanently: () -> Unit
 ) {
-    val totalSizeMb = trashedItems.sumOf { it.size } / (1024.0 * 1024.0)
+    val totalBytes = trashedItems.sumOf { it.size }
+    val formattedTotalSize = run {
+        val mb = totalBytes / (1024.0 * 1024.0)
+        if (mb >= 1000) String.format(Locale.US, "%.2f GB", mb / 1024.0) else String.format(Locale.US, "%.1f MB", mb)
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1072,7 +1565,7 @@ fun TrashManagementSheet(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "${trashedItems.size} ta fayl (${String.format(Locale.US, "%.1f MB", totalSizeMb)})",
+                        "${trashedItems.size} ta fayl ($formattedTotalSize bo'shatiladi)",
                         color = Color(0xFF94A3B8),
                         fontSize = 12.sp
                     )
@@ -1138,7 +1631,7 @@ fun TrashManagementSheet(
                 ) {
                     Icon(Icons.Default.DeleteForever, contentDescription = null, tint = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Barchasini Butunlay O'chirish", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Tizim Savatchasiga Ko'chirish ($formattedTotalSize)", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
             } else {
                 Box(

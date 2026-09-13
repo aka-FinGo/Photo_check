@@ -46,4 +46,63 @@ class KidsPreferencesManager(context: Context) {
     fun clearAllAlbums() {
         whitelistedAlbums = emptySet()
     }
+
+    // 🎴 SLIDEBOX PERSISTENCE
+    var customAlbums: Set<String>
+        get() = prefs.getStringSet(KEY_CUSTOM_ALBUMS, emptySet()) ?: emptySet()
+        set(value) = prefs.edit().putStringSet(KEY_CUSTOM_ALBUMS, value).apply()
+
+    fun addCustomAlbum(name: String) {
+        val current = customAlbums.toMutableSet()
+        current.add(name)
+        customAlbums = current
+    }
+
+    var savedTrashIds: Set<Long>
+        get() {
+            val raw = prefs.getStringSet(KEY_TRASH_IDS, emptySet()) ?: emptySet()
+            return raw.mapNotNull { it.toLongOrNull() }.toSet()
+        }
+        set(value) {
+            val raw = value.map { it.toString() }.toSet()
+            prefs.edit().putStringSet(KEY_TRASH_IDS, raw).apply()
+        }
+
+    var savedFavoriteIds: Set<Long>
+        get() {
+            val raw = prefs.getStringSet(KEY_FAVORITE_IDS, emptySet()) ?: emptySet()
+            return raw.mapNotNull { it.toLongOrNull() }.toSet()
+        }
+        set(value) {
+            val raw = value.map { it.toString() }.toSet()
+            prefs.edit().putStringSet(KEY_FAVORITE_IDS, raw).apply()
+        }
+
+    fun getAlbumAssignments(): Map<Long, String> {
+        val raw = prefs.getStringSet(KEY_ALBUM_ASSIGNMENTS, emptySet()) ?: emptySet()
+        val map = mutableMapOf<Long, String>()
+        for (entry in raw) {
+            val split = entry.split(":::", limit = 2)
+            if (split.size == 2) {
+                val id = split[0].toLongOrNull()
+                if (id != null) {
+                    map[id] = split[1]
+                }
+            }
+        }
+        return map
+    }
+
+    fun saveAlbumAssignment(mediaId: Long, albumName: String) {
+        val current = prefs.getStringSet(KEY_ALBUM_ASSIGNMENTS, emptySet())?.toMutableSet() ?: mutableSetOf()
+        current.removeAll { it.startsWith("$mediaId:::") }
+        current.add("$mediaId:::$albumName")
+        prefs.edit().putStringSet(KEY_ALBUM_ASSIGNMENTS, current).apply()
+    }
+
+    fun removeAlbumAssignment(mediaId: Long) {
+        val current = prefs.getStringSet(KEY_ALBUM_ASSIGNMENTS, emptySet())?.toMutableSet() ?: mutableSetOf()
+        current.removeAll { it.startsWith("$mediaId:::") }
+        prefs.edit().putStringSet(KEY_ALBUM_ASSIGNMENTS, current).apply()
+    }
 }
