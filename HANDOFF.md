@@ -90,6 +90,9 @@ Qo'shimcha rasmiy ro'yxat: [`FEATURES_REGISTRY.md`](file:///e:/Loyihalarim/GitHu
    - **Bento Yakunlash Ekrani (Completion Summary):** Barcha fotosuratlar saralanganda chiroyli g'alaba nishoni, statistika (ko'rilgan, savatdagi hajm, albomlardagi soni), tizim savatchasini tozalash va eksport tugmalari chiqadi.
    - **Web Demo To'liq Mosligi & Klaviatura Boshqaruvi:** Desktop va vebda `ArrowUp` (savat), `ArrowRight` (keyingi), `ArrowLeft` (oldingi), `ArrowDown` (sevimli), `Ctrl+Z` (bekor qilish) klaviatura tugmalari to'liq ulandi.
 
+15. 🛠️ **CI/CD Tuzatish (KidsPreferencesManager Constants):**
+   - `KidsPreferencesManager.kt` da tushib qolgan `KEY_CUSTOM_ALBUMS`, `KEY_TRASH_IDS`, `KEY_FAVORITE_IDS`, va `KEY_ALBUM_ASSIGNMENTS` kalitlari `companion object` ga kiritildi (`Unresolved reference` xatosi bartaraf etildi).
+
 ---
 
 ## 3. GitHub Actions CI/CD va Reliz Tizimi:

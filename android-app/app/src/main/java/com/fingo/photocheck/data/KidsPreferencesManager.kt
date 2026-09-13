@@ -11,6 +11,10 @@ class KidsPreferencesManager(context: Context) {
         private const val KEY_WHITELISTED_ALBUMS = "whitelisted_albums"
         private const val KEY_TIMER_LIMIT_MINUTES = "timer_limit_minutes"
         private const val KEY_IS_FIRST_LAUNCH = "is_first_launch"
+        private const val KEY_CUSTOM_ALBUMS = "key_custom_albums"
+        private const val KEY_TRASH_IDS = "key_trash_ids"
+        private const val KEY_FAVORITE_IDS = "key_favorite_ids"
+        private const val KEY_ALBUM_ASSIGNMENTS = "key_album_assignments"
     }
 
     var isKidsMode: Boolean
