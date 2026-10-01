@@ -106,15 +106,13 @@ fun PhotoCheckApp(
     }
 
     // Live timer countdown for Kids Mode
-    LaunchedEffect(remainingSeconds, isKidsMode, isClassicModeActive) {
-        if (isKidsMode && !isClassicModeActive && remainingSeconds > 0) {
-            delay(1000L)
-            remainingSeconds--
-            if (remainingSeconds <= 0L) {
-                isTimerExpired = true
+    LaunchedEffect(isKidsMode, isClassicModeActive, showParentSettings, timerLimitMinutes, isTimerExpired) {
+        if (isKidsMode && !isClassicModeActive && !showParentSettings && timerLimitMinutes > 0 && !isTimerExpired) {
+            while (remainingSeconds > 0) {
+                delay(1000L)
+                remainingSeconds--
             }
-        } else {
-            isTimerExpired = false
+            isTimerExpired = true
         }
     }
 
@@ -282,6 +280,7 @@ fun PhotoCheckApp(
             whitelistedAlbums = whitelistedAlbums,
             remainingSeconds = remainingSeconds,
             isTimerExpired = isTimerExpired,
+            timerLimitMinutes = timerLimitMinutes,
             isScreenPinned = isScreenPinned,
             onToggleScreenPinning = onToggleScreenPinning,
             onRequestBiometricAuth = onRequestBiometricAuth,
@@ -292,7 +291,7 @@ fun PhotoCheckApp(
             },
             onUnlockTimerRequest = {
                 onRequestBiometricAuth("Taymerni Ochish") {
-                    remainingSeconds = timerLimitMinutes * 60L
+                    remainingSeconds = (if (timerLimitMinutes > 0) timerLimitMinutes else 30) * 60L
                     isTimerExpired = false
                 }
             }

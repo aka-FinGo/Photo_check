@@ -54,6 +54,7 @@ fun KidsSafeGalleryScreen(
     whitelistedAlbums: Set<String>,
     remainingSeconds: Long,
     isTimerExpired: Boolean,
+    timerLimitMinutes: Int = 30,
     isScreenPinned: Boolean = false,
     onToggleScreenPinning: (Boolean) -> Unit = {},
     onRequestBiometricAuth: (title: String, onSuccess: () -> Unit) -> Unit = { _, s -> s() },
@@ -64,6 +65,13 @@ fun KidsSafeGalleryScreen(
     var viewingItemIndex by remember { mutableStateOf<Int?>(null) }
     val gridState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
+
+    // Dismiss fullscreen viewer if bedtime sleep lock triggers
+    LaunchedEffect(isTimerExpired) {
+        if (isTimerExpired) {
+            viewingItemIndex = null
+        }
+    }
 
     // Filter media items to only those in whitelisted albums
     val filteredMedia = remember(mediaList, whitelistedAlbums, selectedAlbumFilter) {
@@ -127,6 +135,7 @@ fun KidsSafeGalleryScreen(
                 // Top Safe Header
                 KidsSafeHeader(
                     remainingSeconds = remainingSeconds,
+                    timerLimitMinutes = timerLimitMinutes,
                     isScreenPinned = isScreenPinned,
                     onToggleScreenPinning = onToggleScreenPinning,
                     onRequestBiometricAuth = onRequestBiometricAuth,
@@ -840,6 +849,7 @@ fun KidsVideoPlayer(uri: Uri) {
 @Composable
 fun KidsSafeHeader(
     remainingSeconds: Long,
+    timerLimitMinutes: Int = 30,
     isScreenPinned: Boolean = false,
     onToggleScreenPinning: (Boolean) -> Unit = {},
     onRequestBiometricAuth: (title: String, onSuccess: () -> Unit) -> Unit = { _, s -> s() },
@@ -950,16 +960,17 @@ fun KidsSafeHeader(
                 }
 
                 // Live Countdown Timer Badge
+                val isUnlimited = timerLimitMinutes <= 0
                 val mins = remainingSeconds / 60
                 val secs = remainingSeconds % 60
-                val formattedTime = String.format("%02d:%02d", mins, secs)
+                val formattedTime = if (isUnlimited) "∞ Cheksiz" else String.format(java.util.Locale.US, "%02d:%02d", mins, secs)
 
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = if (remainingSeconds < 180) Color(0xFF7F1D1D).copy(alpha = 0.85f) else Color(0xFF312E81).copy(alpha = 0.7f),
+                    color = if (!isUnlimited && remainingSeconds < 180) Color(0xFF7F1D1D).copy(alpha = 0.85f) else Color(0xFF312E81).copy(alpha = 0.7f),
                     border = androidx.compose.foundation.BorderStroke(
                         1.dp,
-                        if (remainingSeconds < 180) Color(0xFFEF4444) else Color(0xFF818CF8).copy(alpha = 0.5f)
+                        if (!isUnlimited && remainingSeconds < 180) Color(0xFFEF4444) else Color(0xFF818CF8).copy(alpha = 0.5f)
                     ),
                     modifier = Modifier.height(32.dp)
                 ) {
@@ -968,15 +979,15 @@ fun KidsSafeHeader(
                         modifier = Modifier.padding(horizontal = 8.dp)
                     ) {
                         Icon(
-                            Icons.Default.HourglassBottom,
+                            if (isUnlimited) Icons.Default.AllInclusive else Icons.Default.HourglassBottom,
                             contentDescription = null,
-                            tint = if (remainingSeconds < 180) Color(0xFFFCA5A5) else Color(0xFFA5B4FC),
+                            tint = if (!isUnlimited && remainingSeconds < 180) Color(0xFFFCA5A5) else Color(0xFFA5B4FC),
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = formattedTime,
-                            color = if (remainingSeconds < 180) Color(0xFFFCA5A5) else Color(0xFFA5B4FC),
+                            color = if (!isUnlimited && remainingSeconds < 180) Color(0xFFFCA5A5) else Color(0xFFA5B4FC),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )

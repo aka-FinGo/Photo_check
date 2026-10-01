@@ -119,6 +119,9 @@ class PhotoCheckApp {
                 if (state.remainingSeconds > 0) {
                     state.remainingSeconds--;
                     this.updateTimerDisplay();
+                    if (state.remainingSeconds <= 0) {
+                        this.triggerSleepLock();
+                    }
                 } else {
                     this.triggerSleepLock();
                 }
@@ -127,15 +130,23 @@ class PhotoCheckApp {
     }
 
     updateTimerDisplay() {
+        const pillText = document.getElementById('kids-timer-text');
+        if (!pillText) return;
+        if (state.timerMinutes === 0) {
+            pillText.textContent = '∞ Cheksiz';
+            return;
+        }
         const mins = Math.floor(state.remainingSeconds / 60);
         const secs = state.remainingSeconds % 60;
         const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-        const pillText = document.getElementById('kids-timer-text');
-        if (pillText) pillText.textContent = formatted;
+        pillText.textContent = formatted;
     }
 
     triggerSleepLock() {
         state.isTimerLocked = true;
+        if (typeof this.closeLightbox === 'function') {
+            this.closeLightbox();
+        }
         this.showScreen('kids-sleep');
     }
 
